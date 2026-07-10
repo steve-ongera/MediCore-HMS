@@ -1,4 +1,4 @@
-# HMIS Backend — Hospital Management Information System
+# Medicore  HMIS Backend — Hospital Management Information System
 
 A single-app Django REST Framework backend powering the full patient journey:
 **Registration → Billing → Queue → Triage → Consultation → Lab/Radiology → Pharmacy → Reports.**
