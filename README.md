@@ -12,41 +12,120 @@ for simplicity, as requested.
 ## Project Structure
 
 ```
-hmis_backend/
-├── manage.py                  # Django entrypoint
-├── requirements.txt           # Python dependencies
-├── .env.example                # Environment variable template (copy to .env)
+hmis/
 │
-├── backend/                   # Project configuration package
-│   ├── __init__.py
-│   ├── settings.py            # Apps, DB, DRF, JWT, CORS, Swagger config
-│   └── urls.py                # Root URLConf — mounts /api/ and Swagger/Redoc
+├── hmis_backend/                       # Django REST Framework (single "api" app)
+│   ├── manage.py
+│   ├── requirements.txt
+│   ├── .env.example
+│   │
+│   ├── backend/                        # Project config
+│   │   ├── __init__.py
+│   │   ├── settings.py                 # DB, DRF, JWT, CORS, Swagger
+│   │   └── urls.py                     # Root URLConf + Swagger/Redoc
+│   │
+│   ├── api/                            # ⭐ Everything lives here
+│   │   ├── __init__.py
+│   │   ├── apps.py
+│   │   ├── admin.py
+│   │   ├── models.py                   # All tables (patients → reports)
+│   │   ├── serializers.py
+│   │   ├── views.py                    # ViewSets + auth/dashboard/report views
+│   │   ├── urls.py                     # DRF router
+│   │   ├── permissions.py              # RBAC per role
+│   │   ├── filters.py
+│   │   ├── signals.py                  # Audit log + workflow automation
+│   │   ├── managers.py                 # Soft delete
+│   │   ├── middleware.py
+│   │   ├── exceptions.py
+│   │   ├── utils.py                    # Number/QR/BMI generators
+│   │   ├── management/commands/
+│   │   └── migrations/
+│   │
+│   ├── media/                          # Uploads (lab results, QR receipts, radiology images)
+│   └── static/                         # Hospital logo, static assets
 │
-├── api/                       # ⭐ The single application — all HMIS logic lives here
-│   ├── __init__.py
-│   ├── apps.py                 # AppConfig — wires up signals on startup
-│   ├── admin.py                 # Django admin registrations (back-office access)
-│   ├── models.py                # Every table: accounts, patients, visits, billing,
-│   │                             #   queue, triage, ICD-10, consultation, prescriptions,
-│   │                             #   lab, radiology, pharmacy, inventory, audit log
-│   ├── serializers.py           # DRF serializers for every model above
-│   ├── views.py                 # ViewSets + APIViews: auth, CRUD, dashboard, reports
-│   ├── urls.py                  # DRF router + auth/dashboard/report routes
-│   ├── permissions.py           # RBAC permission classes (one per role)
-│   ├── filters.py               # django-filter FilterSets (search/filter per module)
-│   ├── signals.py                # Audit logging + business-flow automation
-│   │                             #   (auto-invoice on visit, auto-queue on payment, etc.)
-│   ├── managers.py               # Soft-delete manager/queryset
-│   ├── middleware.py             # Thread-local request/user (used by audit signals)
-│   ├── exceptions.py              # Consistent DRF error-response envelope
-│   ├── utils.py                    # Number generators (hospital/visit/invoice/receipt),
-│   │                                #   QR code generation, BMI/age calculators
-│   ├── management/
-│   │   └── commands/               # Custom manage.py commands (e.g. seed data) go here
-│   └── migrations/                  # Generated via `makemigrations` (not committed yet)
-│
-├── media/                      # Uploaded files (lab results, radiology images, receipts/QR)
-└── static/                     # Static assets (e.g. hospital logo for receipts/PDFs)
+└── hmis_frontend/                      # React 19 (JSX)
+    ├── package.json
+    ├── vite.config.js
+    ├── index.html
+    ├── .env.example                    # VITE_API_BASE_URL=...
+    │
+    └── src/
+        ├── main.jsx
+        ├── App.jsx                     # ⭐ ALL routes defined here
+        │
+        ├── components/                 # Reusable, dumb/presentational
+        │   ├── Navbar.jsx
+        │   ├── Sidebar.jsx
+        │   ├── DataTable.jsx
+        │   ├── SearchBar.jsx
+        │   ├── Pagination.jsx
+        │   ├── StatusBadge.jsx
+        │   ├── StatCard.jsx
+        │   ├── Modal.jsx
+        │   ├── ConfirmDialog.jsx
+        │   ├── LoadingSpinner.jsx
+        │   ├── SkeletonLoader.jsx
+        │   ├── ProtectedRoute.jsx      # Role-based route guard
+        │   └── PrintableReceipt.jsx    # Receipt w/ QR + logo
+        │
+        ├── layouts/
+        │   ├── DashboardLayout.jsx     # Navbar + Sidebar shell
+        │   └── AuthLayout.jsx          # Centered login shell
+        │
+        ├── pages/
+        │   ├── auth/
+        │   │   ├── Login.jsx
+        │   │   └── Unauthorized.jsx
+        │   ├── reception/
+        │   │   ├── PatientList.jsx
+        │   │   ├── RegisterPatient.jsx
+        │   │   └── RegisterVisit.jsx
+        │   ├── billing/
+        │   │   ├── Billing.jsx
+        │   │   └── Payments.jsx
+        │   ├── queue/
+        │   │   └── QueueBoard.jsx
+        │   ├── nurse/
+        │   │   └── NurseDashboard.jsx  # Triage / vitals
+        │   ├── doctor/
+        │   │   ├── DoctorDashboard.jsx # "My Queue"
+        │   │   └── Consultation.jsx    # History, ICD10, Rx, Lab/Radiology orders
+        │   ├── laboratory/
+        │   │   └── Laboratory.jsx
+        │   ├── radiology/
+        │   │   └── Radiology.jsx
+        │   ├── pharmacy/
+        │   │   └── Pharmacy.jsx
+        │   ├── inventory/
+        │   │   └── Inventory.jsx       # Medicines, suppliers, batches, stock
+        │   ├── reports/
+        │   │   └── Reports.jsx
+        │   ├── dashboard/
+        │   │   └── Dashboard.jsx       # Cards + charts
+        │   ├── settings/
+        │   │   └── Settings.jsx
+        │   ├── profile/
+        │   │   └── Profile.jsx
+        │   └── NotFound.jsx
+        │
+        ├── services/
+        │   └── api.js                  # ⭐ ONLY file that calls axios — every endpoint
+        │
+        ├── context/
+        │   ├── AuthContext.jsx         # user, token, login/logout, role
+        │   └── ToastContext.jsx        # (or use react-toastify directly)
+        │
+        ├── hooks/
+        │   ├── useAuth.js
+        │   ├── usePagination.js
+        │   └── useDebounce.js          # For search inputs
+        │
+        └── utils/
+            ├── roles.js                 # Role constants + page-access map
+            ├── formatters.js            # Currency, date formatting
+            └── validators.js            # Frontend form validation helpers
 ```
 
 ---
