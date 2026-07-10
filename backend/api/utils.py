@@ -62,10 +62,12 @@ def generate_qr_code(data: str, filename: str) -> ContentFile:
 def calculate_bmi(weight_kg, height_cm):
     if not weight_kg or not height_cm:
         return None
+    weight_kg = float(weight_kg)
+    height_cm = float(height_cm)
     height_m = height_cm / 100
     if height_m <= 0:
         return None
-    return round(float(weight_kg) / (height_m ** 2), 2)
+    return round(weight_kg / (height_m ** 2), 2)
 
 
 def calculate_age(dob):
