@@ -6,17 +6,19 @@ export default function DataTable({ columns, data, loading, emptyMessage = "No r
 
   if (!data || data.length === 0) {
     return (
-      <div className="text-center text-muted py-5">
-        <i className="bi bi-inbox fs-1 d-block mb-2"></i>
-        {emptyMessage}
+      <div className="empty-state">
+        <div className="empty-state__icon">
+          <i className="bi bi-inbox" style={{ fontSize: 22 }} aria-hidden="true" />
+        </div>
+        <div className="empty-state__desc">{emptyMessage}</div>
       </div>
     );
   }
 
   return (
-    <div className="table-responsive">
-      <table className="table table-hover align-middle mb-0">
-        <thead className="table-light">
+    <div className="table-scroll">
+      <table className="data-table">
+        <thead>
           <tr>
             {columns.map((col) => (
               <th key={col.key} style={col.width ? { width: col.width } : undefined}>
