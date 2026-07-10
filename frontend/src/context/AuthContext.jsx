@@ -1,49 +1,36 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+// src/context/AuthContext.jsx
+import { createContext, useCallback, useEffect, useState } from "react";
+import * as api from "../services/api";
 
-import { login as apiLogin, logout as apiLogout, getMe } from "../services/api";
-
-// Mirrors api/models.py -> Role(models.TextChoices)
-export const ROLES = {
-  SUPER_ADMIN: "SUPER_ADMIN",
-  RECEPTIONIST: "RECEPTIONIST",
-  CASHIER: "CASHIER",
-  NURSE: "NURSE",
-  DOCTOR: "DOCTOR",
-  LAB_TECHNOLOGIST: "LAB_TECHNOLOGIST",
-  RADIOLOGIST: "RADIOLOGIST",
-  PHARMACIST: "PHARMACIST",
-  ACCOUNTANT: "ACCOUNTANT",
-};
-
-const AuthContext = createContext(null);
+export const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [isBootstrapping, setIsBootstrapping] = useState(true);
-  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
 
-  // On first load, if a token already exists (page refresh / new tab),
-  // hydrate the session by asking the API who we are.
-  useEffect(() => {
+  const loadMe = useCallback(async () => {
     const token = localStorage.getItem("access_token");
     if (!token) {
-      setIsBootstrapping(false);
+      setLoading(false);
       return;
     }
-
-    getMe()
-      .then((data) => setUser(data))
-      .catch(() => {
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("refresh_token");
-        setUser(null);
-      })
-      .finally(() => setIsBootstrapping(false));
+    try {
+      const me = await api.getMe();
+      setUser(me);
+    } catch {
+      localStorage.clear();
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    loadMe();
+  }, [loadMe]);
+
   const login = useCallback(async (username, password) => {
-    const data = await apiLogin(username, password);
+    const data = await api.login(username, password);
     localStorage.setItem("access_token", data.access);
     localStorage.setItem("refresh_token", data.refresh);
     setUser(data.user);
@@ -53,58 +40,30 @@ export function AuthProvider({ children }) {
   const logout = useCallback(async () => {
     const refresh = localStorage.getItem("refresh_token");
     try {
-      if (refresh) await apiLogout(refresh);
+      if (refresh) await api.logout(refresh);
     } catch {
-      // Best-effort: still clear the local session even if the API call fails
-      // (e.g. token already expired, network is down).
+      // ignore network errors on logout
+    } finally {
+      localStorage.clear();
+      setUser(null);
     }
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
-    setUser(null);
-    navigate("/login", { replace: true });
-  }, [navigate]);
+  }, []);
 
-  // Re-fetch the current user, e.g. after a profile edit or role change.
   const refreshUser = useCallback(async () => {
-    const data = await getMe();
-    setUser(data);
-    return data;
+    const me = await api.getMe();
+    setUser(me);
+    return me;
   }, []);
 
-  // Update the cached user in place without a round-trip (optimistic UI).
-  const patchUser = useCallback((partial) => {
-    setUser((prev) => (prev ? { ...prev, ...partial } : prev));
-  }, []);
-
-  const hasRole = useCallback(
-    (...roles) => {
-      if (!user) return false;
-      if (user.role === ROLES.SUPER_ADMIN) return true; // Super Admin always has full access
-      return roles.includes(user.role);
-    },
-    [user]
-  );
-
-  const value = useMemo(
-    () => ({
-      user,
-      isAuthenticated: !!user,
-      isBootstrapping,
-      isSuperAdmin: user?.role === ROLES.SUPER_ADMIN,
-      login,
-      logout,
-      refreshUser,
-      patchUser,
-      hasRole,
-    }),
-    [user, isBootstrapping, login, logout, refreshUser, patchUser, hasRole]
-  );
+  const value = {
+    user,
+    role: user?.role || null,
+    isAuthenticated: !!user,
+    loading,
+    login,
+    logout,
+    refreshUser,
+  };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within an AuthProvider");
-  return ctx;
 }
