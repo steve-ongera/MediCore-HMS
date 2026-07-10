@@ -11,6 +11,7 @@ import DataTable from "../../components/DataTable";
 import StatusBadge from "../../components/StatusBadge";
 import Modal from "../../components/Modal";
 import LoadingSpinner from "../../components/LoadingSpinner";
+import StatCard from "../../components/StatCard";
 import { formatDateTime, formatCurrency } from "../../utils/formatters";
 
 export default function Laboratory() {
@@ -192,7 +193,7 @@ export default function Laboratory() {
       </div>
 
       {/* Stats */}
-      <div className="stat-grid mb-4">
+      <div className="row g-3 mb-4">
         <StatCard
           label="Pending Orders"
           value={pendingOrders.filter((o) => o.status === "ORDERED").length}

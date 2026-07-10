@@ -9,6 +9,7 @@ import DataTable from "../../components/DataTable";
 import StatusBadge from "../../components/StatusBadge";
 import Modal from "../../components/Modal";
 import LoadingSpinner from "../../components/LoadingSpinner";
+import StatCard from "../../components/StatCard";
 import { formatDateTime } from "../../utils/formatters";
 
 export default function Radiology() {
@@ -159,7 +160,7 @@ export default function Radiology() {
       </div>
 
       {/* Stats */}
-      <div className="stat-grid mb-4">
+      <div className="row g-3 mb-4">
         <StatCard
           label="Pending Orders"
           value={pendingOrders.filter((o) => o.status === "PENDING").length}

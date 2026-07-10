@@ -4,6 +4,7 @@ import { toast } from "react-toastify";
 import { getMyQueue, callNextInQueue } from "../../services/api";
 import StatusBadge from "../../components/StatusBadge";
 import LoadingSpinner from "../../components/LoadingSpinner";
+import StatCard from "../../components/StatCard";
 import { formatTimeAgo } from "../../utils/formatters";
 
 export default function DoctorDashboard() {
@@ -68,7 +69,7 @@ export default function DoctorDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="stat-grid mb-4">
+      <div className="row g-3 mb-4">
         <StatCard
           label="Waiting Patients"
           value={waitingCount}

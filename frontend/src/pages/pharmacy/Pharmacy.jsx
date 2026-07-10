@@ -10,6 +10,7 @@ import DataTable from "../../components/DataTable";
 import StatusBadge from "../../components/StatusBadge";
 import Modal from "../../components/Modal";
 import LoadingSpinner from "../../components/LoadingSpinner";
+import StatCard from "../../components/StatCard";
 import { formatDateTime, formatCurrency } from "../../utils/formatters";
 
 export default function Pharmacy() {
@@ -179,7 +180,7 @@ export default function Pharmacy() {
       </div>
 
       {/* Stats */}
-      <div className="stat-grid mb-4">
+      <div className="row g-3 mb-4">
         <StatCard
           label="Pending Prescriptions"
           value={prescriptions.length}

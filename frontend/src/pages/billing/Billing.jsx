@@ -6,6 +6,7 @@ import DataTable from "../../components/DataTable";
 import SearchBar from "../../components/SearchBar";
 import Pagination from "../../components/Pagination";
 import StatusBadge from "../../components/StatusBadge";
+import StatCard from "../../components/StatCard";
 import { formatCurrency, formatDate } from "../../utils/formatters";
 
 export default function Billing() {
@@ -130,7 +131,7 @@ export default function Billing() {
       </div>
 
       {/* Summary Cards */}
-      <div className="stat-grid mb-4">
+      <div className="row g-3 mb-4">
         <StatCard
           label="Total Invoices"
           value={total}

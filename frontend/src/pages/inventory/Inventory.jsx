@@ -13,6 +13,7 @@ import DataTable from "../../components/DataTable";
 import StatusBadge from "../../components/StatusBadge";
 import Modal from "../../components/Modal";
 import LoadingSpinner from "../../components/LoadingSpinner";
+import StatCard from "../../components/StatCard";
 import { formatCurrency, formatDate } from "../../utils/formatters";
 
 export default function Inventory() {

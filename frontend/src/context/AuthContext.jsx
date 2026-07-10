@@ -1,8 +1,21 @@
 // src/context/AuthContext.jsx
-import { createContext, useCallback, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import * as api from "../services/api";
 
 export const AuthContext = createContext(null);
+
+// Keep these in sync with the backend's role choices.
+export const ROLES = {
+  SUPER_ADMIN: "SUPER_ADMIN",
+  RECEPTIONIST: "RECEPTIONIST",
+  NURSE: "NURSE",
+  DOCTOR: "DOCTOR",
+  LAB_TECHNOLOGIST: "LAB_TECHNOLOGIST",
+  RADIOLOGIST: "RADIOLOGIST",
+  PHARMACIST: "PHARMACIST",
+  CASHIER: "CASHIER",
+  ACCOUNTANT: "ACCOUNTANT",
+};
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -55,6 +68,18 @@ export function AuthProvider({ children }) {
     return me;
   }, []);
 
+  // Super Admin always passes, regardless of which roles are asked for.
+  // hasRole() with no args just checks "is there a logged-in user".
+  const hasRole = useCallback(
+    (...roles) => {
+      if (!user?.role) return false;
+      if (user.role === ROLES.SUPER_ADMIN) return true;
+      if (roles.length === 0) return true;
+      return roles.includes(user.role);
+    },
+    [user]
+  );
+
   const value = {
     user,
     role: user?.role || null,
@@ -63,7 +88,16 @@ export function AuthProvider({ children }) {
     login,
     logout,
     refreshUser,
+    hasRole,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === null) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
 }
