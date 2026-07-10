@@ -149,8 +149,6 @@ export default function Dashboard() {
         <StatCard label="Today's Revenue" value={formatCurrency(cards?.todays_revenue || 0)} icon="bi-cash-stack" variant="success" />
         <StatCard label="Consultations Today" value={cards?.todays_consultations || 0} icon="bi-clipboard2-pulse" variant="info" />
         <StatCard label="Pending Lab" value={cards?.pending_lab || 0} icon="bi-droplet-half" variant="danger" />
-        <StatCard label="Pending Radiology" value={cards?.pending_radiology || 0} icon="bi-camera" variant="danger" />
-        <StatCard label="Low Stock Alerts" value={cards?.medicine_stock_alerts || 0} icon="bi-box-seam" variant="warning" />
       </div>
 
       {/* Charts Section */}
