@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
-  getConsultation,
+  getConsultations,
+  getVisit,
   startConsultation,
   saveConsultation,
   addDiagnosis,
@@ -73,28 +74,30 @@ export default function Consultation() {
   const loadConsultation = async () => {
     setLoading(true);
     try {
-      // Try to get existing consultation
-      const consultations = await getConsultation({ visit: visitId });
-      if (consultations.results && consultations.results.length > 0) {
-        const cons = consultations.results[0];
-        setConsultation(cons);
-        setForm({
-          chief_complaint: cons.chief_complaint || "",
-          history_of_present_illness: cons.history_of_present_illness || "",
-          physical_examination: cons.physical_examination || "",
-          treatment_plan: cons.treatment_plan || "",
-          clinical_notes: cons.clinical_notes || "",
-        });
-        setEditing(true);
+      const visit = await getVisit(visitId);
+
+      // Try to get existing consultation for this visit
+      const consultationsResp = await getConsultations({ visit: visitId });
+      let cons;
+      if (consultationsResp.results && consultationsResp.results.length > 0) {
+        cons = consultationsResp.results[0];
       } else {
         // Start new consultation
-        const newCons = await startConsultation({ visit: visitId });
-        setConsultation(newCons);
-        setEditing(true);
+        cons = await startConsultation({ visit: visitId });
       }
 
-      // Load patient summary
-      const summary = await getPatientSummary(consultation?.patient_id || visitId);
+      setConsultation(cons);
+      setForm({
+        chief_complaint: cons.chief_complaint || "",
+        history_of_present_illness: cons.history_of_present_illness || "",
+        physical_examination: cons.physical_examination || "",
+        treatment_plan: cons.treatment_plan || "",
+        clinical_notes: cons.clinical_notes || "",
+      });
+      setEditing(true);
+
+      // Load patient summary using the patient id from the visit
+      const summary = await getPatientSummary(visit.patient);
       setPatientSummary(summary);
     } catch (err) {
       toast.error(err.message || "Failed to load consultation");
@@ -516,7 +519,7 @@ export default function Consultation() {
                 <div className="text-muted text-sm">No prescriptions yet</div>
               ) : (
                 <div className="rx-list">
-                  {consultation.prescriptions.map((rx) => (
+                  {consultation?.prescriptions?.map((rx) => (
                     <div key={rx.id} className="rx-item">
                       <div>
                         <div className="rx-item__name">{rx.medicine_name}</div>
@@ -552,7 +555,7 @@ export default function Consultation() {
                   {consultation?.lab_orders?.length === 0 ? (
                     <div className="text-muted text-sm">No lab orders</div>
                   ) : (
-                    consultation.lab_orders.map((order) => (
+                    consultation?.lab_orders?.map((order) => (
                       <div key={order.id} className="d-flex justify-content-between align-items-center py-1">
                         <span className="text-sm">{order.test_name}</span>
                         <StatusBadge status={order.status} />
@@ -579,7 +582,7 @@ export default function Consultation() {
                   {consultation?.radiology_orders?.length === 0 ? (
                     <div className="text-muted text-sm">No radiology orders</div>
                   ) : (
-                    consultation.radiology_orders.map((order) => (
+                    consultation?.radiology_orders?.map((order) => (
                       <div key={order.id} className="d-flex justify-content-between align-items-center py-1">
                         <span className="text-sm">{order.test_name}</span>
                         <StatusBadge status={order.status} />

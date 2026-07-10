@@ -273,7 +273,7 @@ class ConsultationSerializer(serializers.ModelSerializer):
             "clinical_notes", "diagnoses", "prescriptions", "lab_orders", "radiology_orders",
             "vitals", "status", "pause_reason", "pause_notes", "started_at", "completed_at",
         ]
-        read_only_fields = ["id", "started_at", "completed_at"]
+        read_only_fields = ["id", "doctor", "started_at", "completed_at"]  # ✅ added "doctor"
 
 
 class ConsultationPauseSerializer(serializers.Serializer):

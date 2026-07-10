@@ -348,6 +348,14 @@ class ConsultationViewSet(BaseModelViewSet):
     search_fields = ["visit__patient__full_name", "visit__visit_number"]
 
     def perform_create(self, serializer):
+        visit = serializer.validated_data["visit"]
+        existing = Consultation.objects.filter(visit=visit).first()
+        if existing:
+            # Someone (or a duplicate request) already created this consultation.
+            # Attach the existing instance instead of erroring out.
+            serializer.instance = existing
+            return
+
         consultation = serializer.save(doctor=self.request.user)
         consultation.visit.status = VisitStatus.IN_CONSULTATION
         consultation.visit.save(update_fields=["status"])
