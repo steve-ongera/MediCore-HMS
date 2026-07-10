@@ -54,7 +54,7 @@ hmis/
     └── src/
         ├── main.jsx
         ├── App.jsx                     # ⭐ ALL routes defined here
-        │
+        │__ styles/main.css
         ├── components/                 # Reusable, dumb/presentational
         │   ├── Navbar.jsx
         │   ├── Sidebar.jsx
