@@ -3130,3 +3130,21 @@ fieldset legend {
 .skip-link:focus {
   top: var(--space-4);
 }
+
+
+.chart-tooltip {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 8px 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  font-size: 13px;
+}
+.chart-tooltip__label {
+  color: #6b7280;
+  margin-bottom: 2px;
+}
+.chart-tooltip__value {
+  font-weight: 600;
+  color: #111827;
+}
