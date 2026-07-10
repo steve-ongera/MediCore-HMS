@@ -15,6 +15,8 @@ import Dashboard from "./pages/dashboard/Dashboard.jsx";
 import PatientList from "./pages/reception/PatientList.jsx";
 import RegisterPatient from "./pages/reception/RegisterPatient.jsx";
 import RegisterVisit from "./pages/reception/RegisterVisit.jsx";
+import PatientVisits from "./pages/reception/PatientVisits.jsx";
+import EditPatient from "./pages/reception/EditPatient.jsx";
 
 import Billing from "./pages/billing/Billing.jsx";
 import Payments from "./pages/billing/Payments.jsx";
@@ -71,6 +73,22 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={[ROLES.RECEPTIONIST]}>
               <RegisterPatient />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/patients/:id/visits"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.RECEPTIONIST]}>
+              <PatientVisits />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/patients/:id/edit"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.RECEPTIONIST]}>
+              <EditPatient />
             </ProtectedRoute>
           }
         />

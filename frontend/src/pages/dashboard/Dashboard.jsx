@@ -15,7 +15,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
 } from "recharts";
 import { getDashboard } from "../../services/api";
 import StatCard from "../../components/StatCard";
@@ -31,7 +30,41 @@ const DEPARTMENT_COLORS = [
   "#64748b", // secondary
 ];
 
-// Custom tooltip so KES values render properly instead of raw numbers
+const QUICK_ACTIONS = [
+  {
+    to: "/patients/register",
+    icon: "bi-person-plus",
+    title: "Register Patient",
+    desc: "New patient registration",
+    iconBg: "var(--primary-50)",
+    iconColor: "var(--primary-600)",
+  },
+  {
+    to: "/visits/register",
+    icon: "bi-clipboard-plus",
+    title: "Register Visit",
+    desc: "New patient visit",
+    iconBg: "var(--success-soft)",
+    iconColor: "var(--success-strong)",
+  },
+  {
+    to: "/queue",
+    icon: "bi-hourglass-split",
+    title: "View Queue",
+    desc: "Current waiting patients",
+    iconBg: "var(--warning-soft)",
+    iconColor: "var(--warning-strong)",
+  },
+  {
+    to: "/billing",
+    icon: "bi-receipt",
+    title: "Billing",
+    desc: "Invoices & payments",
+    iconBg: "var(--info-soft)",
+    iconColor: "var(--info-strong)",
+  },
+];
+
 function RevenueTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
@@ -86,7 +119,6 @@ export default function Dashboard() {
 
   const { cards, charts } = data || {};
 
-  // Normalize numeric strings coming back from DRF (Decimal -> string)
   const revenueData = (charts?.revenue || []).map((d) => ({
     date: d.date,
     revenue: parseFloat(d.revenue) || 0,
@@ -111,7 +143,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="stat-grid mb-4">
+      <div className="stat-grid mb-6">
         <StatCard label="Today's Patients" value={cards?.todays_patients || 0} icon="bi-people" variant="primary" />
         <StatCard label="Waiting Patients" value={cards?.waiting_patients || 0} icon="bi-hourglass-split" variant="warning" />
         <StatCard label="Today's Revenue" value={formatCurrency(cards?.todays_revenue || 0)} icon="bi-cash-stack" variant="success" />
@@ -123,86 +155,59 @@ export default function Dashboard() {
 
       {/* Charts Section */}
       <div className="dashboard-grid">
-        {/* Revenue Line Chart */}
         <div className="chart-card">
           <div className="chart-card__header">
             <h5 className="card-title">Revenue (Last 7 Days)</h5>
-            <span className="text-muted small">Daily revenue trend</span>
+            <span className="text-tertiary text-xs">Daily revenue trend</span>
           </div>
           <div style={{ height: 240 }}>
             {revenueData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={revenueData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color, #e5e7eb)" />
-                  <XAxis
-                    dataKey="date"
-                    tickFormatter={(d) => formatDate(d, { day: "numeric" })}
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)}
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                    width={40}
-                  />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                  <XAxis dataKey="date" tickFormatter={(d) => formatDate(d, { day: "numeric" })} fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)} fontSize={12} tickLine={false} axisLine={false} width={40} />
                   <Tooltip content={<RevenueTooltip />} />
-                  <Line
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="#4f46e5"
-                    strokeWidth={2.5}
-                    dot={{ r: 3, fill: "#4f46e5" }}
-                    activeDot={{ r: 5 }}
-                  />
+                  <Line type="monotone" dataKey="revenue" stroke="#4f46e5" strokeWidth={2.5} dot={{ r: 3, fill: "#4f46e5" }} activeDot={{ r: 5 }} />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <div className="text-center text-muted py-4">No revenue data available</div>
+              <div className="text-center text-tertiary py-6">No revenue data available</div>
             )}
           </div>
         </div>
 
-        {/* Visits Bar Chart */}
         <div className="chart-card">
           <div className="chart-card__header">
             <h5 className="card-title">Visits (Last 7 Days)</h5>
-            <span className="text-muted small">Daily visit count</span>
+            <span className="text-tertiary text-xs">Daily visit count</span>
           </div>
           <div style={{ height: 240 }}>
             {visitsData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={visitsData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color, #e5e7eb)" />
-                  <XAxis
-                    dataKey="date"
-                    tickFormatter={(d) => formatDate(d, { day: "numeric" })}
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                  />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                  <XAxis dataKey="date" tickFormatter={(d) => formatDate(d, { day: "numeric" })} fontSize={12} tickLine={false} axisLine={false} />
                   <YAxis allowDecimals={false} fontSize={12} tickLine={false} axisLine={false} width={30} />
                   <Tooltip content={<VisitsTooltip />} cursor={{ fill: "rgba(22, 163, 74, 0.08)" }} />
                   <Bar dataKey="visits" fill="#16a34a" radius={[4, 4, 0, 0]} maxBarSize={40} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="text-center text-muted py-4">No visit data available</div>
+              <div className="text-center text-tertiary py-6">No visit data available</div>
             )}
           </div>
         </div>
       </div>
 
       {/* Department Breakdown - Donut Chart */}
-      <div className="card mt-4">
+      <div className="card mt-6">
         <div className="card-header">
           <h5 className="card-title">Department Activity (Last 30 Days)</h5>
         </div>
         <div className="card-body">
           {departmentData.length > 0 ? (
-            <div className="d-flex flex-wrap align-items-center gap-4">
+            <div className="flex flex-wrap items-center gap-6">
               <div style={{ width: 220, height: 220, flexShrink: 0 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -230,11 +235,12 @@ export default function Dashboard() {
                   const total = departmentData.reduce((sum, d) => sum + d.value, 0);
                   const pct = total > 0 ? Math.round((dept.value / total) * 100) : 0;
                   return (
-                    <div key={dept.name} className="d-flex align-items-center justify-content-between mb-2">
-                      <div className="d-flex align-items-center gap-2">
+                    <div key={dept.name} className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
                         <span
-                          className="d-inline-block rounded-circle"
+                          className="rounded-full"
                           style={{
+                            display: "inline-block",
                             width: 10,
                             height: 10,
                             backgroundColor: DEPARTMENT_COLORS[index % DEPARTMENT_COLORS.length],
@@ -242,8 +248,8 @@ export default function Dashboard() {
                         />
                         <span className="text-sm">{dept.name}</span>
                       </div>
-                      <span className="text-sm fw-semibold">
-                        {dept.value} <span className="text-muted">({pct}%)</span>
+                      <span className="text-sm font-semibold">
+                        {dept.value} <span className="text-tertiary">({pct}%)</span>
                       </span>
                     </div>
                   );
@@ -251,57 +257,27 @@ export default function Dashboard() {
               </div>
             </div>
           ) : (
-            <div className="text-center text-muted py-3">No department data available</div>
+            <div className="text-center text-tertiary py-5">No department data available</div>
           )}
         </div>
       </div>
 
       {/* Quick Actions */}
-      <div className="row mt-4">
-        <div className="col-md-3 col-sm-6">
-          <Link to="/patients/register" className="card card-interactive h-100">
+      <div className="stat-grid mt-6">
+        {QUICK_ACTIONS.map((action) => (
+          <Link key={action.to} to={action.to} className="card card-interactive">
             <div className="card-body text-center">
-              <div className="bg-primary bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style={{ width: 48, height: 48 }}>
-                <i className="bi bi-person-plus text-primary fs-4"></i>
+              <div
+                className="rounded-full flex items-center justify-center mb-3 mx-auto"
+                style={{ width: 48, height: 48, background: action.iconBg }}
+              >
+                <i className={`bi ${action.icon}`} style={{ fontSize: "1.25rem", color: action.iconColor }}></i>
               </div>
-              <h6 className="mb-0">Register Patient</h6>
-              <small className="text-muted">New patient registration</small>
+              <h6>{action.title}</h6>
+              <small className="text-tertiary">{action.desc}</small>
             </div>
           </Link>
-        </div>
-        <div className="col-md-3 col-sm-6">
-          <Link to="/visits/register" className="card card-interactive h-100">
-            <div className="card-body text-center">
-              <div className="bg-success bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style={{ width: 48, height: 48 }}>
-                <i className="bi bi-clipboard-plus text-success fs-4"></i>
-              </div>
-              <h6 className="mb-0">Register Visit</h6>
-              <small className="text-muted">New patient visit</small>
-            </div>
-          </Link>
-        </div>
-        <div className="col-md-3 col-sm-6">
-          <Link to="/queue" className="card card-interactive h-100">
-            <div className="card-body text-center">
-              <div className="bg-warning bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style={{ width: 48, height: 48 }}>
-                <i className="bi bi-hourglass-split text-warning fs-4"></i>
-              </div>
-              <h6 className="mb-0">View Queue</h6>
-              <small className="text-muted">Current waiting patients</small>
-            </div>
-          </Link>
-        </div>
-        <div className="col-md-3 col-sm-6">
-          <Link to="/billing" className="card card-interactive h-100">
-            <div className="card-body text-center">
-              <div className="bg-info bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style={{ width: 48, height: 48 }}>
-                <i className="bi bi-receipt text-info fs-4"></i>
-              </div>
-              <h6 className="mb-0">Billing</h6>
-              <small className="text-muted">Invoices & payments</small>
-            </div>
-          </Link>
-        </div>
+        ))}
       </div>
     </>
   );

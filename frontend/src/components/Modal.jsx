@@ -1,21 +1,25 @@
-export default function Modal({ show, onClose, title, children, footer, size = "" }) {
+export default function Modal({ show, onClose, title, description, children, footer, size = "" }) {
   if (!show) return null;
 
+  const handleOverlayClick = (e) => {
+    if (e.target === e.currentTarget) onClose();
+  };
+
   return (
-    <>
-      <div className="modal fade show d-block" tabIndex="-1" role="dialog">
-        <div className={`modal-dialog modal-dialog-centered ${size}`} role="document">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h5 className="modal-title">{title}</h5>
-              <button type="button" className="btn-close" onClick={onClose}></button>
-            </div>
-            <div className="modal-body">{children}</div>
-            {footer && <div className="modal-footer">{footer}</div>}
+    <div className="modal-overlay" onClick={handleOverlayClick}>
+      <div className={`modal ${size}`} role="dialog" aria-modal="true">
+        <div className="modal-header">
+          <div>
+            <h5 className="modal-title">{title}</h5>
+            {description && <p className="modal-desc">{description}</p>}
           </div>
+          <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
+            <i className="bi bi-x-lg"></i>
+          </button>
         </div>
+        <div className="modal-body">{children}</div>
+        {footer && <div className="modal-footer">{footer}</div>}
       </div>
-      <div className="modal-backdrop fade show"></div>
-    </>
+    </div>
   );
 }

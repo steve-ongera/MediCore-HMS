@@ -64,9 +64,7 @@ export default function PatientList() {
     {
       key: "hospital_number",
       label: "Hospital #",
-      render: (row) => (
-        <span className="cell-mono">{row.hospital_number}</span>
-      ),
+      render: (row) => <span className="cell-mono">{row.hospital_number}</span>,
     },
     {
       key: "full_name",
@@ -78,7 +76,7 @@ export default function PatientList() {
           </span>
           <div>
             <div className="cell-primary">{row.full_name}</div>
-            <div className="text-xs text-muted">{row.gender || "—"}</div>
+            <div className="text-2xs text-tertiary">{row.gender || "—"}</div>
           </div>
         </div>
       ),
@@ -107,22 +105,26 @@ export default function PatientList() {
       key: "actions",
       label: "",
       render: (row) => (
-        <div className="d-flex gap-1 justify-content-end">
+        <div className="flex gap-1 justify-end">
           <Link
             to={`/patients/${row.id}/visits`}
-            className="btn btn-sm btn-outline-primary"
+            className="btn-icon-only"
+            title="View visits"
           >
             <i className="bi bi-eye"></i>
           </Link>
           <Link
             to={`/patients/${row.id}/edit`}
-            className="btn btn-sm btn-outline-secondary"
+            className="btn-icon-only"
+            title="Edit patient"
           >
             <i className="bi bi-pencil"></i>
           </Link>
           <button
-            className="btn btn-sm btn-outline-danger"
+            className="btn-icon-only"
+            style={{ color: "var(--danger-strong)" }}
             onClick={() => handleDelete(row.id)}
+            title="Delete patient"
           >
             <i className="bi bi-trash"></i>
           </button>
@@ -149,7 +151,7 @@ export default function PatientList() {
 
       <div className="card">
         <div className="card-header">
-          <div className="d-flex align-items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-3 flex-wrap">
             <SearchBar
               placeholder="Search by name, phone, or hospital #..."
               onSearch={(val) => {
@@ -160,7 +162,7 @@ export default function PatientList() {
             />
           </div>
           <div>
-            <span className="text-muted text-sm">
+            <span className="text-tertiary text-sm">
               {total} patient{total !== 1 ? "s" : ""}
             </span>
           </div>
@@ -176,12 +178,7 @@ export default function PatientList() {
         </div>
 
         <div className="card-footer">
-          <Pagination
-            page={page}
-            count={total}
-            pageSize={pageSize}
-            onPageChange={setPage}
-          />
+          <Pagination page={page} count={total} pageSize={pageSize} onPageChange={setPage} />
         </div>
       </div>
 

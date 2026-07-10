@@ -10,18 +10,28 @@ export default function SearchBar({ placeholder = "Search...", onSearch, delay =
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
+  const handleClear = () => setValue("");
+
   return (
-    <div className="input-group">
-      <span className="input-group-text bg-white border-end-0">
-        <i className="bi bi-search text-muted"></i>
-      </span>
+    <div className="search-bar">
+      <i className="bi bi-search search-bar__icon"></i>
       <input
         type="text"
-        className="form-control border-start-0"
+        className="search-bar__input"
         placeholder={placeholder}
         value={value}
         onChange={(e) => setValue(e.target.value)}
       />
+      {value && (
+        <button
+          type="button"
+          className="search-bar__clear"
+          onClick={handleClear}
+          aria-label="Clear search"
+        >
+          <i className="bi bi-x"></i>
+        </button>
+      )}
     </div>
   );
 }

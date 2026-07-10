@@ -89,8 +89,8 @@ export default function Laboratory() {
       label: "Test",
       render: (row) => (
         <div>
-          <div className="fw-semibold">{row.test_name}</div>
-          <div className="text-xs text-muted">{row.test_code}</div>
+          <div className="font-semibold">{row.test_name}</div>
+          <div className="text-2xs text-tertiary">{row.test_code}</div>
         </div>
       ),
     },
@@ -120,11 +120,11 @@ export default function Laboratory() {
       key: "actions",
       label: "",
       render: (row) => (
-        <div className="d-flex gap-1 justify-content-end">
+        <div className="flex gap-1 justify-end">
           {row.status === "ORDERED" && row.is_paid && (
             <button
               type="button"
-              className="btn btn-sm btn-primary"
+              className="btn btn-primary btn-sm"
               onClick={() => handleCollect(row.id)}
             >
               <i className="bi bi-box-seam me-1"></i>
@@ -134,7 +134,7 @@ export default function Laboratory() {
           {(row.status === "COLLECTED" || row.status === "PROCESSING") && row.is_paid && (
             <button
               type="button"
-              className="btn btn-sm btn-success"
+              className="btn btn-success btn-sm"
               onClick={() => {
                 setSelectedOrder(row);
                 setShowResultModal(true);
@@ -145,7 +145,7 @@ export default function Laboratory() {
             </button>
           )}
           {!row.is_paid && (
-            <span className="text-warning text-sm">Awaiting Payment</span>
+            <span className="text-warning text-xs">Awaiting Payment</span>
           )}
         </div>
       ),
@@ -157,16 +157,15 @@ export default function Laboratory() {
     {
       key: "result",
       label: "Result",
-      render: (row) => (
+      render: (row) =>
         row.result ? (
-          <span className="text-success">
-            <i className="bi bi-check-circle me-1"></i>
+          <span className="flex items-center gap-1 text-success">
+            <i className="bi bi-check-circle"></i>
             Completed
           </span>
         ) : (
-          <span className="text-muted">—</span>
-        )
-      ),
+          <span className="text-tertiary">—</span>
+        ),
     },
   ];
 
@@ -181,11 +180,7 @@ export default function Laboratory() {
           <p className="page-subtitle">Manage lab orders and results</p>
         </div>
         <div className="page-header__actions">
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={loadData}
-          >
+          <button type="button" className="btn btn-secondary" onClick={loadData}>
             <i className="bi bi-arrow-clockwise me-2"></i>
             Refresh
           </button>
@@ -193,7 +188,7 @@ export default function Laboratory() {
       </div>
 
       {/* Stats */}
-      <div className="row g-3 mb-4">
+      <div className="stat-grid mb-6">
         <StatCard
           label="Pending Orders"
           value={pendingOrders.filter((o) => o.status === "ORDERED").length}
@@ -276,7 +271,7 @@ export default function Laboratory() {
               disabled={submitting}
             >
               {submitting ? (
-                <span className="spinner-border spinner-border-sm" />
+                <span className="spinner spinner-inverse" style={{ width: 16, height: 16 }} />
               ) : (
                 <>
                   <i className="bi bi-upload me-2"></i>
@@ -288,11 +283,11 @@ export default function Laboratory() {
         }
       >
         {selectedOrder && (
-          <div className="mb-3">
-            <div className="d-flex justify-content-between align-items-center p-2 bg-primary-soft rounded">
+          <div className="mb-4">
+            <div className="flex justify-between items-center p-2 bg-primary-soft rounded-md">
               <div>
                 <strong>{selectedOrder.test_name}</strong>
-                <span className="text-muted ms-2 text-sm">
+                <span className="text-tertiary ml-2 text-sm">
                   {selectedOrder.patient_name}
                 </span>
               </div>
