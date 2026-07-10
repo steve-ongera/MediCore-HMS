@@ -351,8 +351,6 @@ class ConsultationViewSet(BaseModelViewSet):
         visit = serializer.validated_data["visit"]
         existing = Consultation.objects.filter(visit=visit).first()
         if existing:
-            # Someone (or a duplicate request) already created this consultation.
-            # Attach the existing instance instead of erroring out.
             serializer.instance = existing
             return
 

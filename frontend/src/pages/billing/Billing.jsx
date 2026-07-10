@@ -130,8 +130,8 @@ export default function Billing() {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="row g-3 mb-4">
+      {/* Stats */}
+      <div className="stat-grid mb-4">
         <StatCard
           label="Total Invoices"
           value={total}

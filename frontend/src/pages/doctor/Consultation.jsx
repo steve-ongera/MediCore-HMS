@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
@@ -20,16 +20,25 @@ import {
 import LoadingSpinner from "../../components/LoadingSpinner";
 import Modal from "../../components/Modal";
 import StatusBadge from "../../components/StatusBadge";
-import { formatDate, formatDateTime } from "../../utils/formatters";
+import { formatDate } from "../../utils/formatters";
+
+const TABS = [
+  { key: "notes", label: "Clinical Notes" },
+  { key: "diagnoses", label: "Diagnoses" },
+  { key: "prescriptions", label: "Prescriptions" },
+  { key: "orders", label: "Lab & Radiology" },
+];
 
 export default function Consultation() {
   const { visitId } = useParams();
   const navigate = useNavigate();
+  const loadedVisitRef = useRef(null);
+
   const [loading, setLoading] = useState(true);
   const [consultation, setConsultation] = useState(null);
   const [patientSummary, setPatientSummary] = useState(null);
-  const [editing, setEditing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState("notes");
 
   const [form, setForm] = useState({
     chief_complaint: "",
@@ -58,16 +67,18 @@ export default function Consultation() {
 
   const [showLabModal, setShowLabModal] = useState(false);
   const [labForm, setLabForm] = useState({ test: "" });
-  const [labTests, setLabTests] = useState([]);
 
   const [showRadiologyModal, setShowRadiologyModal] = useState(false);
   const [radiologyForm, setRadiologyForm] = useState({ test: "" });
-  const [radiologyTests, setRadiologyTests] = useState([]);
 
   const [showPauseModal, setShowPauseModal] = useState(false);
   const [pauseForm, setPauseForm] = useState({ pause_reason: "OTHER", pause_notes: "" });
 
   useEffect(() => {
+    // Guards against React StrictMode's double-invoke of useEffect on mount,
+    // which would otherwise fire two concurrent "start consultation" requests.
+    if (loadedVisitRef.current === visitId) return;
+    loadedVisitRef.current = visitId;
     loadConsultation();
   }, [visitId]);
 
@@ -76,13 +87,12 @@ export default function Consultation() {
     try {
       const visit = await getVisit(visitId);
 
-      // Try to get existing consultation for this visit
+      // Try to get the existing consultation for this visit
       const consultationsResp = await getConsultations({ visit: visitId });
       let cons;
       if (consultationsResp.results && consultationsResp.results.length > 0) {
         cons = consultationsResp.results[0];
       } else {
-        // Start new consultation
         cons = await startConsultation({ visit: visitId });
       }
 
@@ -94,9 +104,8 @@ export default function Consultation() {
         treatment_plan: cons.treatment_plan || "",
         clinical_notes: cons.clinical_notes || "",
       });
-      setEditing(true);
 
-      // Load patient summary using the patient id from the visit
+      // Patient summary needs the actual patient id, which lives on the visit
       const summary = await getPatientSummary(visit.patient);
       setPatientSummary(summary);
     } catch (err) {
@@ -232,7 +241,43 @@ export default function Consultation() {
     }
   };
 
+  const handleCreateLabOrder = async () => {
+    if (!labForm.test) {
+      toast.error("Please select a test");
+      return;
+    }
+    try {
+      await createLabOrder({ consultation: consultation.id, test: labForm.test });
+      toast.success("Lab order created");
+      setShowLabModal(false);
+      setLabForm({ test: "" });
+      loadConsultation();
+    } catch (err) {
+      toast.error(err.message || "Failed to create lab order");
+    }
+  };
+
+  const handleCreateRadiologyOrder = async () => {
+    if (!radiologyForm.test) {
+      toast.error("Please select a test");
+      return;
+    }
+    try {
+      await createRadiologyOrder({ consultation: consultation.id, test: radiologyForm.test });
+      toast.success("Radiology order created");
+      setShowRadiologyModal(false);
+      setRadiologyForm({ test: "" });
+      loadConsultation();
+    } catch (err) {
+      toast.error(err.message || "Failed to create radiology order");
+    }
+  };
+
   if (loading) return <LoadingSpinner />;
+
+  const diagnosesCount = consultation?.diagnoses?.length || 0;
+  const prescriptionsCount = consultation?.prescriptions?.length || 0;
+  const ordersCount = (consultation?.lab_orders?.length || 0) + (consultation?.radiology_orders?.length || 0);
 
   return (
     <>
@@ -301,7 +346,7 @@ export default function Consultation() {
                 </span>
                 <h5 className="mt-2 mb-0">{consultation?.patient_name}</h5>
                 <span className="text-muted text-sm">
-                  #{consultation?.patient_id}
+                  #{patientSummary?.patient?.hospital_number}
                 </span>
               </div>
               <hr />
@@ -369,13 +414,35 @@ export default function Consultation() {
           )}
         </div>
 
-        {/* Main Consultation Area */}
+        {/* Main Consultation Area — tabbed to keep the page short */}
         <div className="col-lg-9">
-          {/* Clinical Notes */}
-          <div className="card mb-3">
-            <div className="card-header">
-              <h5 className="card-title">Clinical Notes</h5>
-              <div className="d-flex gap-2">
+          <div className="tabs mb-3">
+            {TABS.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                className={`tabs__item ${activeTab === tab.key ? "is-active" : ""}`}
+                onClick={() => setActiveTab(tab.key)}
+              >
+                {tab.label}
+                {tab.key === "diagnoses" && diagnosesCount > 0 && (
+                  <span className="pill-count ml-2">{diagnosesCount}</span>
+                )}
+                {tab.key === "prescriptions" && prescriptionsCount > 0 && (
+                  <span className="pill-count ml-2">{prescriptionsCount}</span>
+                )}
+                {tab.key === "orders" && ordersCount > 0 && (
+                  <span className="pill-count ml-2">{ordersCount}</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* --- Clinical Notes tab --- */}
+          {activeTab === "notes" && (
+            <div className="card">
+              <div className="card-header">
+                <h5 className="card-title">Clinical Notes</h5>
                 <button
                   type="button"
                   className="btn btn-sm btn-primary"
@@ -385,214 +452,232 @@ export default function Consultation() {
                   {submitting ? (
                     <span className="spinner-border spinner-border-sm" />
                   ) : (
-                    <i className="bi bi-save"></i>
+                    <i className="bi bi-save me-1"></i>
                   )}
                   Save
                 </button>
               </div>
-            </div>
-            <div className="card-body">
-              <div className="field">
-                <label className="field-label" htmlFor="chief_complaint">
-                  Chief Complaint
-                </label>
-                <textarea
-                  id="chief_complaint"
-                  name="chief_complaint"
-                  className="textarea"
-                  rows={2}
-                  placeholder="Patient's main reason for visit..."
-                  value={form.chief_complaint}
-                  onChange={handleFormChange}
-                />
-              </div>
-
-              <div className="field">
-                <label className="field-label" htmlFor="history_of_present_illness">
-                  History of Present Illness
-                </label>
-                <textarea
-                  id="history_of_present_illness"
-                  name="history_of_present_illness"
-                  className="textarea"
-                  rows={3}
-                  placeholder="Detailed history of the current condition..."
-                  value={form.history_of_present_illness}
-                  onChange={handleFormChange}
-                />
-              </div>
-
-              <div className="field">
-                <label className="field-label" htmlFor="physical_examination">
-                  Physical Examination
-                </label>
-                <textarea
-                  id="physical_examination"
-                  name="physical_examination"
-                  className="textarea"
-                  rows={3}
-                  placeholder="Physical exam findings..."
-                  value={form.physical_examination}
-                  onChange={handleFormChange}
-                />
-              </div>
-
-              <div className="field">
-                <label className="field-label" htmlFor="treatment_plan">
-                  Treatment Plan
-                </label>
-                <textarea
-                  id="treatment_plan"
-                  name="treatment_plan"
-                  className="textarea"
-                  rows={3}
-                  placeholder="Treatment plan and recommendations..."
-                  value={form.treatment_plan}
-                  onChange={handleFormChange}
-                />
-              </div>
-
-              <div className="field">
-                <label className="field-label" htmlFor="clinical_notes">
-                  Clinical Notes
-                </label>
-                <textarea
-                  id="clinical_notes"
-                  name="clinical_notes"
-                  className="textarea"
-                  rows={2}
-                  placeholder="Additional clinical notes..."
-                  value={form.clinical_notes}
-                  onChange={handleFormChange}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Diagnoses */}
-          <div className="card mb-3">
-            <div className="card-header">
-              <h5 className="card-title">Diagnoses</h5>
-              <button
-                type="button"
-                className="btn btn-sm btn-primary"
-                onClick={() => setShowDiagnosisModal(true)}
-              >
-                <i className="bi bi-plus-lg me-1"></i>
-                Add Diagnosis
-              </button>
-            </div>
-            <div className="card-body">
-              {consultation?.diagnoses?.length === 0 ? (
-                <div className="text-muted text-sm">No diagnoses added yet</div>
-              ) : (
-                <div className="d-flex flex-wrap gap-2">
-                  {consultation?.diagnoses?.map((d) => (
-                    <div key={d.id} className={`diagnosis-chip ${d.is_primary ? "is-primary" : ""}`}>
-                      <span className="diagnosis-chip__code">{d.code}</span>
-                      <span>{d.description}</span>
-                      {d.is_primary && (
-                        <span className="badge bg-primary text-xs">Primary</span>
-                      )}
-                    </div>
-                  ))}
+              <div className="card-body">
+                <div className="field">
+                  <label className="field-label" htmlFor="chief_complaint">
+                    Chief Complaint
+                  </label>
+                  <textarea
+                    id="chief_complaint"
+                    name="chief_complaint"
+                    className="textarea"
+                    rows={2}
+                    placeholder="Patient's main reason for visit..."
+                    value={form.chief_complaint}
+                    onChange={handleFormChange}
+                  />
                 </div>
-              )}
-            </div>
-          </div>
 
-          {/* Prescriptions */}
-          <div className="card mb-3">
-            <div className="card-header">
-              <h5 className="card-title">Prescriptions</h5>
-              <button
-                type="button"
-                className="btn btn-sm btn-primary"
-                onClick={() => setShowPrescriptionModal(true)}
-              >
-                <i className="bi bi-plus-lg me-1"></i>
-                Prescribe
-              </button>
+                <div className="field">
+                  <label className="field-label" htmlFor="history_of_present_illness">
+                    History of Present Illness
+                  </label>
+                  <textarea
+                    id="history_of_present_illness"
+                    name="history_of_present_illness"
+                    className="textarea"
+                    rows={3}
+                    placeholder="Detailed history of the current condition..."
+                    value={form.history_of_present_illness}
+                    onChange={handleFormChange}
+                  />
+                </div>
+
+                <div className="field">
+                  <label className="field-label" htmlFor="physical_examination">
+                    Physical Examination
+                  </label>
+                  <textarea
+                    id="physical_examination"
+                    name="physical_examination"
+                    className="textarea"
+                    rows={3}
+                    placeholder="Physical exam findings..."
+                    value={form.physical_examination}
+                    onChange={handleFormChange}
+                  />
+                </div>
+
+                <div className="field">
+                  <label className="field-label" htmlFor="treatment_plan">
+                    Treatment Plan
+                  </label>
+                  <textarea
+                    id="treatment_plan"
+                    name="treatment_plan"
+                    className="textarea"
+                    rows={3}
+                    placeholder="Treatment plan and recommendations..."
+                    value={form.treatment_plan}
+                    onChange={handleFormChange}
+                  />
+                </div>
+
+                <div className="field mb-0">
+                  <label className="field-label" htmlFor="clinical_notes">
+                    Clinical Notes
+                  </label>
+                  <textarea
+                    id="clinical_notes"
+                    name="clinical_notes"
+                    className="textarea"
+                    rows={2}
+                    placeholder="Additional clinical notes..."
+                    value={form.clinical_notes}
+                    onChange={handleFormChange}
+                  />
+                </div>
+              </div>
             </div>
-            <div className="card-body">
-              {consultation?.prescriptions?.length === 0 ? (
-                <div className="text-muted text-sm">No prescriptions yet</div>
-              ) : (
-                <div className="rx-list">
-                  {consultation?.prescriptions?.map((rx) => (
-                    <div key={rx.id} className="rx-item">
-                      <div>
-                        <div className="rx-item__name">{rx.medicine_name}</div>
-                        <div className="rx-item__detail">
-                          {rx.dosage} · {rx.frequency} · {rx.duration}
-                          {rx.instructions && ` · ${rx.instructions}`}
+          )}
+
+          {/* --- Diagnoses tab --- */}
+          {activeTab === "diagnoses" && (
+            <div className="card">
+              <div className="card-header">
+                <h5 className="card-title">Diagnoses</h5>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-primary"
+                  onClick={() => setShowDiagnosisModal(true)}
+                >
+                  <i className="bi bi-plus-lg me-1"></i>
+                  Add Diagnosis
+                </button>
+              </div>
+              <div className="card-body">
+                {diagnosesCount === 0 ? (
+                  <div className="empty-state">
+                    <div className="empty-state__icon">
+                      <i className="bi bi-clipboard2-pulse" style={{ fontSize: "1.5rem" }}></i>
+                    </div>
+                    <div className="empty-state__title">No diagnoses added yet</div>
+                    <div className="empty-state__desc">Add an ICD-10 diagnosis once you've assessed the patient.</div>
+                  </div>
+                ) : (
+                  <div className="d-flex flex-wrap gap-2">
+                    {consultation?.diagnoses?.map((d) => (
+                      <div key={d.id} className={`diagnosis-chip ${d.is_primary ? "is-primary" : ""}`}>
+                        <span className="diagnosis-chip__code">{d.code}</span>
+                        <span>{d.description}</span>
+                        {d.is_primary && (
+                          <span className="badge badge-primary">Primary</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* --- Prescriptions tab --- */}
+          {activeTab === "prescriptions" && (
+            <div className="card">
+              <div className="card-header">
+                <h5 className="card-title">Prescriptions</h5>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-primary"
+                  onClick={() => setShowPrescriptionModal(true)}
+                >
+                  <i className="bi bi-plus-lg me-1"></i>
+                  Prescribe
+                </button>
+              </div>
+              <div className="card-body">
+                {prescriptionsCount === 0 ? (
+                  <div className="empty-state">
+                    <div className="empty-state__icon">
+                      <i className="bi bi-capsule" style={{ fontSize: "1.5rem" }}></i>
+                    </div>
+                    <div className="empty-state__title">No prescriptions yet</div>
+                    <div className="empty-state__desc">Prescribe medication for this patient to send it to pharmacy.</div>
+                  </div>
+                ) : (
+                  <div className="rx-list">
+                    {consultation?.prescriptions?.map((rx) => (
+                      <div key={rx.id} className="rx-item">
+                        <div>
+                          <div className="rx-item__name">{rx.medicine_name}</div>
+                          <div className="rx-item__detail">
+                            {rx.dosage} · {rx.frequency} · {rx.duration}
+                            {rx.instructions && ` · ${rx.instructions}`}
+                          </div>
                         </div>
+                        <StatusBadge status={rx.is_dispensed ? "DISPENSED" : "PENDING"} />
                       </div>
-                      <StatusBadge status={rx.is_dispensed ? "DISPENSED" : "PENDING"} />
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Lab & Radiology Orders */}
-          <div className="row">
-            <div className="col-md-6">
-              <div className="card">
-                <div className="card-header">
-                  <h6 className="mb-0">Lab Orders</h6>
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-primary"
-                    onClick={() => setShowLabModal(true)}
-                  >
-                    <i className="bi bi-plus-lg me-1"></i>
-                    Order Lab
-                  </button>
+          {/* --- Lab & Radiology tab --- */}
+          {activeTab === "orders" && (
+            <div className="row">
+              <div className="col-md-6">
+                <div className="card mb-3 mb-md-0">
+                  <div className="card-header">
+                    <h6 className="mb-0">Lab Orders</h6>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-primary"
+                      onClick={() => setShowLabModal(true)}
+                    >
+                      <i className="bi bi-plus-lg me-1"></i>
+                      Order Lab
+                    </button>
+                  </div>
+                  <div className="card-body">
+                    {consultation?.lab_orders?.length === 0 ? (
+                      <div className="text-muted text-sm">No lab orders</div>
+                    ) : (
+                      consultation?.lab_orders?.map((order) => (
+                        <div key={order.id} className="d-flex justify-content-between align-items-center py-1">
+                          <span className="text-sm">{order.test_name}</span>
+                          <StatusBadge status={order.status} />
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
-                <div className="card-body">
-                  {consultation?.lab_orders?.length === 0 ? (
-                    <div className="text-muted text-sm">No lab orders</div>
-                  ) : (
-                    consultation?.lab_orders?.map((order) => (
-                      <div key={order.id} className="d-flex justify-content-between align-items-center py-1">
-                        <span className="text-sm">{order.test_name}</span>
-                        <StatusBadge status={order.status} />
-                      </div>
-                    ))
-                  )}
+              </div>
+              <div className="col-md-6">
+                <div className="card">
+                  <div className="card-header">
+                    <h6 className="mb-0">Radiology Orders</h6>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-primary"
+                      onClick={() => setShowRadiologyModal(true)}
+                    >
+                      <i className="bi bi-plus-lg me-1"></i>
+                      Order Radiology
+                    </button>
+                  </div>
+                  <div className="card-body">
+                    {consultation?.radiology_orders?.length === 0 ? (
+                      <div className="text-muted text-sm">No radiology orders</div>
+                    ) : (
+                      consultation?.radiology_orders?.map((order) => (
+                        <div key={order.id} className="d-flex justify-content-between align-items-center py-1">
+                          <span className="text-sm">{order.test_name}</span>
+                          <StatusBadge status={order.status} />
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="col-md-6">
-              <div className="card">
-                <div className="card-header">
-                  <h6 className="mb-0">Radiology Orders</h6>
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-primary"
-                    onClick={() => setShowRadiologyModal(true)}
-                  >
-                    <i className="bi bi-plus-lg me-1"></i>
-                    Order Radiology
-                  </button>
-                </div>
-                <div className="card-body">
-                  {consultation?.radiology_orders?.length === 0 ? (
-                    <div className="text-muted text-sm">No radiology orders</div>
-                  ) : (
-                    consultation?.radiology_orders?.map((order) => (
-                      <div key={order.id} className="d-flex justify-content-between align-items-center py-1">
-                        <span className="text-sm">{order.test_name}</span>
-                        <StatusBadge status={order.status} />
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -844,20 +929,7 @@ export default function Consultation() {
             <button
               type="button"
               className="btn btn-primary"
-              onClick={async () => {
-                if (!labForm.test) {
-                  toast.error("Please select a test");
-                  return;
-                }
-                try {
-                  await createLabOrder({ consultation: consultation.id, test: labForm.test });
-                  toast.success("Lab order created");
-                  setShowLabModal(false);
-                  loadConsultation();
-                } catch (err) {
-                  toast.error(err.message || "Failed to create lab order");
-                }
-              }}
+              onClick={handleCreateLabOrder}
             >
               <i className="bi bi-plus-lg me-2"></i>
               Order Lab Test
@@ -907,20 +979,7 @@ export default function Consultation() {
             <button
               type="button"
               className="btn btn-primary"
-              onClick={async () => {
-                if (!radiologyForm.test) {
-                  toast.error("Please select a test");
-                  return;
-                }
-                try {
-                  await createRadiologyOrder({ consultation: consultation.id, test: radiologyForm.test });
-                  toast.success("Radiology order created");
-                  setShowRadiologyModal(false);
-                  loadConsultation();
-                } catch (err) {
-                  toast.error(err.message || "Failed to create radiology order");
-                }
-              }}
+              onClick={handleCreateRadiologyOrder}
             >
               <i className="bi bi-plus-lg me-2"></i>
               Order Radiology
@@ -996,7 +1055,7 @@ export default function Consultation() {
             <option value="OTHER">Other</option>
           </select>
         </div>
-        <div className="field">
+        <div className="field mb-0">
           <label className="field-label" htmlFor="pause_notes">
             Notes
           </label>
