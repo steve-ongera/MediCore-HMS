@@ -1,0 +1,216 @@
+// src/App.jsx
+import { Routes, Route, Navigate } from "react-router-dom";
+
+import DashboardLayout from "./layouts/DashboardLayout.jsx";
+import AuthLayout from "./layouts/AuthLayout.jsx";
+import ProtectedRoute from "./components/ProtectedRoute.jsx";
+import { ROLES } from "./utils/roles.js";
+
+import Login from "./pages/auth/Login.jsx";
+import Unauthorized from "./pages/auth/Unauthorized.jsx";
+import NotFound from "./pages/NotFound.jsx";
+
+import Dashboard from "./pages/dashboard/Dashboard.jsx";
+
+import PatientList from "./pages/reception/PatientList.jsx";
+import RegisterPatient from "./pages/reception/RegisterPatient.jsx";
+import RegisterVisit from "./pages/reception/RegisterVisit.jsx";
+
+import Billing from "./pages/billing/Billing.jsx";
+import Payments from "./pages/billing/Payments.jsx";
+
+import QueueBoard from "./pages/queue/QueueBoard.jsx";
+
+import NurseDashboard from "./pages/nurse/NurseDashboard.jsx";
+
+import DoctorDashboard from "./pages/doctor/DoctorDashboard.jsx";
+import Consultation from "./pages/doctor/Consultation.jsx";
+
+import Laboratory from "./pages/laboratory/Laboratory.jsx";
+import Radiology from "./pages/radiology/Radiology.jsx";
+import Pharmacy from "./pages/pharmacy/Pharmacy.jsx";
+import Inventory from "./pages/inventory/Inventory.jsx";
+
+import Reports from "./pages/reports/Reports.jsx";
+import Settings from "./pages/settings/Settings.jsx";
+import Profile from "./pages/profile/Profile.jsx";
+
+export default function App() {
+  return (
+    <Routes>
+      {/* Public */}
+      <Route element={<AuthLayout />}>
+        <Route path="/login" element={<Login />} />
+        <Route path="/unauthorized" element={<Unauthorized />} />
+      </Route>
+
+      {/* Authenticated shell */}
+      <Route element={<DashboardLayout />}>
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Reception */}
+        <Route
+          path="/patients"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.RECEPTIONIST]}>
+              <PatientList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/patients/register"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.RECEPTIONIST]}>
+              <RegisterPatient />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/visits/register"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.RECEPTIONIST]}>
+              <RegisterVisit />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Billing */}
+        <Route
+          path="/billing"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.CASHIER, ROLES.ACCOUNTANT]}>
+              <Billing />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payments"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.CASHIER, ROLES.ACCOUNTANT]}>
+              <Payments />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Queue */}
+        <Route
+          path="/queue"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.RECEPTIONIST, ROLES.NURSE, ROLES.DOCTOR]}>
+              <QueueBoard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Nurse */}
+        <Route
+          path="/nurse"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.NURSE]}>
+              <NurseDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Doctor */}
+        <Route
+          path="/doctor"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.DOCTOR]}>
+              <DoctorDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/doctor/consultation/:visitId"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.DOCTOR]}>
+              <Consultation />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Laboratory */}
+        <Route
+          path="/laboratory"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.LAB_TECHNOLOGIST]}>
+              <Laboratory />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Radiology */}
+        <Route
+          path="/radiology"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.RADIOLOGIST]}>
+              <Radiology />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Pharmacy */}
+        <Route
+          path="/pharmacy"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.PHARMACIST]}>
+              <Pharmacy />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Inventory */}
+        <Route
+          path="/inventory"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.PHARMACIST, ROLES.ACCOUNTANT]}>
+              <Inventory />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Reports */}
+        <Route
+          path="/reports"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.ACCOUNTANT, ROLES.SUPER_ADMIN]}>
+              <Reports />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Settings (Super Admin) */}
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN]}>
+              <Settings />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Profile - any authenticated user */}
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route path="*" element={<NotFound />} />
+      </Route>
+    </Routes>
+  );
+}
