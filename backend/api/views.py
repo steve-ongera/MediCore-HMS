@@ -256,6 +256,10 @@ class PaymentViewSet(BaseModelViewSet):
         """Structured receipt payload for the frontend to render/print."""
         payment = self.get_object()
         invoice = payment.invoice
+        qr_code_url = None
+        if payment.qr_code:
+            qr_code_url = request.build_absolute_uri(payment.qr_code.url)
+
         return Response({
             "hospital_name": "City General Hospital",
             "receipt_number": payment.receipt_number,
@@ -265,7 +269,7 @@ class PaymentViewSet(BaseModelViewSet):
             "payment_method": payment.method,
             "amount_paid": str(payment.amount),
             "invoice_balance": str(invoice.balance),
-            "qr_code_url": payment.qr_code.url if payment.qr_code else None,
+            "qr_code_url": qr_code_url,
             "paid_at": payment.paid_at,
         })
 

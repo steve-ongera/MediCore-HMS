@@ -1,5 +1,5 @@
 // src/App.jsx
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 import DashboardLayout from "./layouts/DashboardLayout.jsx";
 import AuthLayout from "./layouts/AuthLayout.jsx";
@@ -36,6 +36,13 @@ import Inventory from "./pages/inventory/Inventory.jsx";
 import Reports from "./pages/reports/Reports.jsx";
 import Settings from "./pages/settings/Settings.jsx";
 import Profile from "./pages/profile/Profile.jsx";
+
+// Preserves query params (e.g. ?invoice=xxx) when redirecting old /payments
+// links to the new /billing/payments path.
+function LegacyPaymentsRedirect() {
+  const location = useLocation();
+  return <Navigate to={`/billing/payments${location.search}`} replace />;
+}
 
 export default function App() {
   return (
@@ -111,13 +118,17 @@ export default function App() {
           }
         />
         <Route
-          path="/payments"
+          path="/billing/payments"
           element={
             <ProtectedRoute allowedRoles={[ROLES.CASHIER, ROLES.ACCOUNTANT]}>
               <Payments />
             </ProtectedRoute>
           }
         />
+
+        {/* Legacy redirect: old /payments links (with query params like ?invoice=xxx)
+            now forward to /billing/payments */}
+        <Route path="/payments" element={<LegacyPaymentsRedirect />} />
 
         {/* Queue */}
         <Route

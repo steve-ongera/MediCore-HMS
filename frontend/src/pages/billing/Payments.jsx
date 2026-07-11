@@ -6,6 +6,7 @@ import DataTable from "../../components/DataTable";
 import SearchBar from "../../components/SearchBar";
 import Pagination from "../../components/Pagination";
 import Modal from "../../components/Modal";
+import ReceiptModal from "../../components/ReceiptModal";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import { formatCurrency, formatDateTime } from "../../utils/formatters";
 
@@ -21,6 +22,10 @@ export default function Payments() {
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Receipt modal state
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [selectedReceiptId, setSelectedReceiptId] = useState(null);
 
   const [form, setForm] = useState({
     invoice: invoiceIdParam || "",
@@ -97,6 +102,10 @@ export default function Payments() {
       setForm({ invoice: "", amount: "", method: "CASH", reference_number: "" });
       loadPayments();
       loadInvoices();
+
+      // Immediately surface the printable/downloadable receipt for the new payment
+      setSelectedReceiptId(payment.id);
+      setShowReceiptModal(true);
     } catch (err) {
       toast.error(err.message || "Failed to process payment");
     } finally {
@@ -150,6 +159,25 @@ export default function Payments() {
       key: "paid_at",
       label: "Paid At",
       render: (row) => formatDateTime(row.paid_at),
+    },
+    {
+      key: "actions",
+      label: "",
+      render: (row) => (
+        <div className="d-flex gap-1 justify-content-end">
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-primary"
+            onClick={() => {
+              setSelectedReceiptId(row.id);
+              setShowReceiptModal(true);
+            }}
+          >
+            <i className="bi bi-receipt me-1"></i>
+            Receipt
+          </button>
+        </div>
+      ),
     },
   ];
 
@@ -335,6 +363,16 @@ export default function Payments() {
           </div>
         </form>
       </Modal>
+
+      {/* Receipt Modal — print / download PDF with QR code */}
+      <ReceiptModal
+        paymentId={selectedReceiptId}
+        show={showReceiptModal}
+        onClose={() => {
+          setShowReceiptModal(false);
+          setSelectedReceiptId(null);
+        }}
+      />
     </>
   );
 }

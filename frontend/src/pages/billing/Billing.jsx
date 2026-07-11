@@ -94,7 +94,7 @@ export default function Billing() {
       render: (row) => (
         <div className="d-flex gap-1 justify-content-end">
           <Link
-            to={`/payments?invoice=${row.id}`}
+            to={`/billing/payments?invoice=${row.id}`}
             className="btn btn-sm btn-primary"
           >
             <i className="bi bi-cash"></i> Pay
@@ -123,7 +123,7 @@ export default function Billing() {
           <p className="page-subtitle">Manage patient invoices and payments</p>
         </div>
         <div className="page-header__actions">
-          <Link to="/payments" className="btn btn-success">
+          <Link to="/billing/payments" className="btn btn-success">
             <i className="bi bi-cash-stack me-2"></i>
             Process Payment
           </Link>
