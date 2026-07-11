@@ -1,3 +1,4 @@
+//src/pages/doctor/DoctorDashboard.jsx
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -44,6 +45,13 @@ export default function DoctorDashboard() {
     }
   };
 
+  // A paused consultation doesn't need to go through call-next again — the
+  // doctor is already assigned, they just need to jump back into the same
+  // consultation screen and hit "Resume" there.
+  const handleContinueConsultation = (entry) => {
+    navigate(`/doctor/consultation/${entry.visit}`);
+  };
+
   if (loading) return <LoadingSpinner />;
 
   const waitingCount = queue.filter((e) => e.status === "WAITING_DOCTOR" || e.status === "WAITING").length;
@@ -77,6 +85,12 @@ export default function DoctorDashboard() {
           value={queue.filter((e) => e.status === "CONSULTING").length}
           icon="bi-clipboard2-pulse"
           variant="primary"
+        />
+        <StatCard
+          label="Paused"
+          value={queue.filter((e) => e.status === "PAUSED").length}
+          icon="bi-pause-circle"
+          variant="warning"
         />
         <StatCard
           label="Completed Today"
@@ -150,10 +164,19 @@ export default function DoctorDashboard() {
                       <button
                         type="button"
                         className="btn btn-success btn-sm"
-                        onClick={() => navigate(`/doctor/consultation/${entry.visit}`)}
+                        onClick={() => handleContinueConsultation(entry)}
                       >
                         <i className="bi bi-clipboard2-pulse me-1"></i>
                         Continue
+                      </button>
+                    ) : entry.status === "PAUSED" ? (
+                      <button
+                        type="button"
+                        className="btn btn-warning btn-sm"
+                        onClick={() => handleContinueConsultation(entry)}
+                      >
+                        <i className="bi bi-play-circle me-1"></i>
+                        Continue (Paused)
                       </button>
                     ) : (
                       <StatusBadge status={entry.status} />

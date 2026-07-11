@@ -1,3 +1,4 @@
+//src/pages/doctor/Consultation.jsx
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -29,6 +30,16 @@ const TABS = [
   { key: "orders", label: "Lab & Radiology" },
 ];
 
+const EMPTY_FORM = {
+  chief_complaint: "",
+  history_of_present_illness: "",
+  physical_examination: "",
+  treatment_plan: "",
+  clinical_notes: "",
+};
+
+const draftKeyFor = (visitId) => `consultation_draft_${visitId}`;
+
 export default function Consultation() {
   const { visitId } = useParams();
   const navigate = useNavigate();
@@ -40,13 +51,10 @@ export default function Consultation() {
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState("notes");
 
-  const [form, setForm] = useState({
-    chief_complaint: "",
-    history_of_present_illness: "",
-    physical_examination: "",
-    treatment_plan: "",
-    clinical_notes: "",
-  });
+  const [form, setForm] = useState(EMPTY_FORM);
+  // Snapshot of the form as it exists in the database — used to detect unsaved edits.
+  const [savedForm, setSavedForm] = useState(EMPTY_FORM);
+  const isDirty = JSON.stringify(form) !== JSON.stringify(savedForm);
 
   const [diagnosisSearch, setDiagnosisSearch] = useState("");
   const [diagnosisResults, setDiagnosisResults] = useState([]);
@@ -80,7 +88,32 @@ export default function Consultation() {
     if (loadedVisitRef.current === visitId) return;
     loadedVisitRef.current = visitId;
     loadConsultation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visitId]);
+
+  // Warn before an actual browser reload/close if there are unsaved clinical notes.
+  useEffect(() => {
+    const handler = (e) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
+
+  // Autosave a local draft on every keystroke so that if the page does get
+  // reloaded (or the tab is closed by accident) the in-progress notes are not
+  // lost — they'll be restored from this draft next time the page loads.
+  useEffect(() => {
+    if (!consultation) return;
+    localStorage.setItem(draftKeyFor(visitId), JSON.stringify(form));
+  }, [form, consultation, visitId]);
+
+  const clearDraft = () => {
+    localStorage.removeItem(draftKeyFor(visitId));
+  };
 
   const loadConsultation = async () => {
     setLoading(true);
@@ -97,13 +130,34 @@ export default function Consultation() {
       }
 
       setConsultation(cons);
-      setForm({
+
+      const serverForm = {
         chief_complaint: cons.chief_complaint || "",
         history_of_present_illness: cons.history_of_present_illness || "",
         physical_examination: cons.physical_examination || "",
         treatment_plan: cons.treatment_plan || "",
         clinical_notes: cons.clinical_notes || "",
-      });
+      };
+      setSavedForm(serverForm);
+
+      // If a local draft exists and differs from what's saved in the database,
+      // restore it instead of silently discarding the doctor's unsaved work.
+      const draftRaw = localStorage.getItem(draftKeyFor(visitId));
+      if (draftRaw) {
+        try {
+          const draft = JSON.parse(draftRaw);
+          if (JSON.stringify(draft) !== JSON.stringify(serverForm)) {
+            setForm(draft);
+            toast.info("Restored your unsaved clinical notes from before the page reloaded.");
+          } else {
+            setForm(serverForm);
+          }
+        } catch {
+          setForm(serverForm);
+        }
+      } else {
+        setForm(serverForm);
+      }
 
       // Patient summary needs the actual patient id, which lives on the visit
       const summary = await getPatientSummary(visit.patient);
@@ -125,6 +179,8 @@ export default function Consultation() {
     setSubmitting(true);
     try {
       await saveConsultation(consultation.id, form);
+      setSavedForm(form);
+      clearDraft();
       toast.success("Consultation saved");
       loadConsultation();
     } catch (err) {
@@ -134,11 +190,34 @@ export default function Consultation() {
     }
   };
 
+  // Prevent tab switching while there are unsaved clinical notes, so a doctor
+  // can't accidentally navigate away from edits that were never persisted.
+  const handleTabChange = (tabKey) => {
+    if (tabKey === activeTab) return;
+    if (activeTab === "notes" && isDirty) {
+      toast.warning("Please save your clinical notes before switching tabs.");
+      return;
+    }
+    setActiveTab(tabKey);
+  };
+
+  const handleBack = () => {
+    if (isDirty && !window.confirm("You have unsaved clinical notes. Leave without saving?")) {
+      return;
+    }
+    navigate("/doctor");
+  };
+
   const handleComplete = async () => {
     if (!window.confirm("Complete this consultation?")) return;
     setSubmitting(true);
     try {
+      if (isDirty) {
+        await saveConsultation(consultation.id, form);
+        setSavedForm(form);
+      }
       await completeConsultation(consultation.id);
+      clearDraft();
       toast.success("Consultation completed!");
       navigate("/doctor");
     } catch (err) {
@@ -151,6 +230,10 @@ export default function Consultation() {
   const handlePause = async () => {
     setSubmitting(true);
     try {
+      if (isDirty) {
+        await saveConsultation(consultation.id, form);
+        setSavedForm(form);
+      }
       await pauseConsultation(consultation.id, pauseForm);
       toast.success("Consultation paused");
       setShowPauseModal(false);
@@ -291,6 +374,7 @@ export default function Consultation() {
         </div>
         <div className="page-header__actions">
           <StatusBadge status={consultation?.status} />
+          {isDirty && <span className="badge badge-warning">Unsaved changes</span>}
           {consultation?.status === "IN_PROGRESS" && (
             <>
               <button
@@ -327,7 +411,7 @@ export default function Consultation() {
           <button
             type="button"
             className="btn btn-secondary"
-            onClick={() => navigate("/doctor")}
+            onClick={handleBack}
           >
             <i className="bi bi-arrow-left me-2"></i>
             Back
@@ -422,7 +506,8 @@ export default function Consultation() {
                 key={tab.key}
                 type="button"
                 className={`tabs__item ${activeTab === tab.key ? "is-active" : ""}`}
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => handleTabChange(tab.key)}
+                title={activeTab === "notes" && isDirty && tab.key !== "notes" ? "Save your clinical notes first" : undefined}
               >
                 {tab.label}
                 {tab.key === "diagnoses" && diagnosesCount > 0 && (
@@ -447,7 +532,7 @@ export default function Consultation() {
                   type="button"
                   className="btn btn-sm btn-primary"
                   onClick={handleSave}
-                  disabled={submitting}
+                  disabled={submitting || !isDirty}
                 >
                   {submitting ? (
                     <span className="spinner-border spinner-border-sm" />

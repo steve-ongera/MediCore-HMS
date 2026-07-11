@@ -184,6 +184,7 @@ export const getConsultations = (params) => unwrap(client.get(`/consultations/${
 export const getConsultation = (id) => unwrap(client.get(`/consultations/${id}/`));
 export const startConsultation = (payload) => unwrap(client.post("/consultations/", payload));
 export const saveConsultation = (id, payload) => unwrap(client.patch(`/consultations/${id}/`, payload));
+export const deleteConsultation = (id) => unwrap(client.delete(`/consultations/${id}/`));
 export const addDiagnosis = (id, payload) => unwrap(client.post(`/consultations/${id}/add-diagnosis/`, payload));
 export const pauseConsultation = (id, payload) => unwrap(client.post(`/consultations/${id}/pause/`, payload));
 export const resumeConsultation = (id) => unwrap(client.post(`/consultations/${id}/resume/`));

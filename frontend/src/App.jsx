@@ -27,6 +27,8 @@ import NurseDashboard from "./pages/nurse/NurseDashboard.jsx";
 
 import DoctorDashboard from "./pages/doctor/DoctorDashboard.jsx";
 import Consultation from "./pages/doctor/Consultation.jsx";
+import ConsultationList from "./pages/doctor/ConsultationList.jsx";
+import ConsultationDetail from "./pages/doctor/ConsultationDetail.jsx";
 
 import Laboratory from "./pages/laboratory/Laboratory.jsx";
 import Radiology from "./pages/radiology/Radiology.jsx";
@@ -164,6 +166,22 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={[ROLES.DOCTOR]}>
               <Consultation />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/doctor/consultations"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.DOCTOR]}>
+              <ConsultationList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/doctor/consultations/:id"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.DOCTOR]}>
+              <ConsultationDetail />
             </ProtectedRoute>
           }
         />

@@ -37,6 +37,7 @@ const NAV_GROUPS = [
     links: [
       { to: "/nurse", label: "Triage / Vitals", icon: "bi-heart-pulse", roles: [ROLES.NURSE] },
       { to: "/doctor", label: "My Queue", icon: "bi-clipboard2-pulse", roles: [ROLES.DOCTOR] },
+      { to: "/doctor/consultations", label: "Consultations", icon: "bi-journal-medical", roles: [ROLES.DOCTOR] },
     ],
   },
   {
