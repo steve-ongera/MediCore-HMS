@@ -70,7 +70,7 @@ export default function PatientList() {
       key: "full_name",
       label: "Patient Name",
       render: (row) => (
-        <div className="table-row-avatar">
+        <Link to={`/patients/${row.id}`} className="table-row-avatar table-row-avatar--link">
           <span className="avatar avatar-sm">
             {row.full_name?.split(" ").map((n) => n[0]).join("").toUpperCase() || "?"}
           </span>
@@ -78,7 +78,7 @@ export default function PatientList() {
             <div className="cell-primary">{row.full_name}</div>
             <div className="text-2xs text-tertiary">{row.gender || "—"}</div>
           </div>
-        </div>
+        </Link>
       ),
     },
     {
@@ -106,6 +106,13 @@ export default function PatientList() {
       label: "",
       render: (row) => (
         <div className="flex gap-1 justify-end">
+          <Link
+            to={`/patients/${row.id}`}
+            className="btn-icon-only"
+            title="View profile"
+          >
+            <i className="bi bi-person-vcard"></i>
+          </Link>
           <Link
             to={`/patients/${row.id}/visits`}
             className="btn-icon-only"
