@@ -17,6 +17,7 @@ import RegisterPatient from "./pages/reception/RegisterPatient.jsx";
 import RegisterVisit from "./pages/reception/RegisterVisit.jsx";
 import PatientVisits from "./pages/reception/PatientVisits.jsx";
 import EditPatient from "./pages/reception/EditPatient.jsx";
+import PatientProfile from "./pages/reception/PatientProfile.jsx";
 
 import Billing from "./pages/billing/Billing.jsx";
 import Payments from "./pages/billing/Payments.jsx";
@@ -34,6 +35,7 @@ import Laboratory from "./pages/laboratory/Laboratory.jsx";
 import Radiology from "./pages/radiology/Radiology.jsx";
 import Pharmacy from "./pages/pharmacy/Pharmacy.jsx";
 import Inventory from "./pages/inventory/Inventory.jsx";
+import Suppliers from "./pages/pharmacy/Suppliers.jsx";
 
 import Reports from "./pages/reports/Reports.jsx";
 import Settings from "./pages/settings/Settings.jsx";
@@ -43,6 +45,7 @@ import Profile from "./pages/profile/Profile.jsx";
 import Users from "./pages/settings/Users.jsx";
 import Departments from "./pages/settings/Departments.jsx";
 import AuditLog from "./pages/settings/AuditLog.jsx";
+import TestCatalog from "./pages/settings/TestCatalog.jsx";
 
 // Preserves query params (e.g. ?invoice=xxx) when redirecting old /payments
 // links to the new /billing/payments path.
@@ -87,6 +90,14 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={[ROLES.RECEPTIONIST]}>
               <RegisterPatient />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/patients/:id"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.RECEPTIONIST, ROLES.NURSE, ROLES.DOCTOR]}>
+              <PatientProfile />
             </ProtectedRoute>
           }
         />
@@ -220,6 +231,14 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/suppliers"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.PHARMACIST, ROLES.ACCOUNTANT]}>
+              <Suppliers />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Inventory */}
         <Route
@@ -251,7 +270,7 @@ export default function App() {
           }
         />
 
-        {/* Staff, Departments, Audit Log (Super Admin) */}
+        {/* Staff, Departments, Audit Log, Test Catalog (Super Admin) */}
         <Route
           path="/users"
           element={
@@ -273,6 +292,14 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN]}>
               <AuditLog />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings/test-catalog"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN]}>
+              <TestCatalog />
             </ProtectedRoute>
           }
         />
