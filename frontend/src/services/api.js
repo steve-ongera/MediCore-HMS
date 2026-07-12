@@ -251,6 +251,13 @@ export const createStockTransaction = (payload) => unwrap(client.post("/stock-tr
 export const dispenseMedicine = (payload) => unwrap(client.post("/pharmacy-dispenses/", payload));
 export const getDispenses = (params) => unwrap(client.get(`/pharmacy-dispenses/${qs(params)}`));
 
+// ---------------------------------------------------------------------------
+// Walk-in / OTC Sales (POS) — no patient record required
+// ---------------------------------------------------------------------------
+export const getOTCSales = (params) => unwrap(client.get(`/otc-sales/${qs(params)}`));
+export const createOTCSale = (payload) => unwrap(client.post("/otc-sales/", payload));
+export const getOTCSaleReceipt = (id) => unwrap(client.get(`/otc-sales/${id}/receipt/`));
+
 // ===========================================================================
 // DASHBOARD / REPORTS
 // ===========================================================================
