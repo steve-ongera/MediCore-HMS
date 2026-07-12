@@ -39,6 +39,11 @@ import Reports from "./pages/reports/Reports.jsx";
 import Settings from "./pages/settings/Settings.jsx";
 import Profile from "./pages/profile/Profile.jsx";
 
+// Super Admin management pages
+import Users from "./pages/settings/Users.jsx";
+import Departments from "./pages/settings/Departments.jsx";
+import AuditLog from "./pages/settings/AuditLog.jsx";
+
 // Preserves query params (e.g. ?invoice=xxx) when redirecting old /payments
 // links to the new /billing/payments path.
 function LegacyPaymentsRedirect() {
@@ -242,6 +247,32 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN]}>
               <Settings />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Staff, Departments, Audit Log (Super Admin) */}
+        <Route
+          path="/users"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN]}>
+              <Users />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/departments"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN]}>
+              <Departments />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/audit-logs"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN]}>
+              <AuditLog />
             </ProtectedRoute>
           }
         />
