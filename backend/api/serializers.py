@@ -7,6 +7,7 @@ from api.models import (
     ConsultationDiagnosis, Prescription, LabTestCatalog, LabOrder, LabResult,
     RadiologyTestCatalog, RadiologyOrder, RadiologyResult, Supplier,
     Medicine, MedicineBatch, StockTransaction, PharmacyDispense, AuditLog,
+    OTCSale, OTCSaleItem,
 )
 
 
@@ -377,6 +378,65 @@ class PharmacyDispenseSerializer(serializers.ModelSerializer):
             "quantity_dispensed", "invoice", "dispensed_by", "dispensed_at",
         ]
         read_only_fields = ["id", "invoice", "dispensed_by", "dispensed_at"]
+
+
+# ---------------------------------------------------------------------------
+# Walk-in / OTC Pharmacy Sales (POS)
+# ---------------------------------------------------------------------------
+class OTCSaleItemSerializer(serializers.ModelSerializer):
+    medicine_name = serializers.CharField(source="medicine.name", read_only=True)
+    medicine_unit = serializers.CharField(source="medicine.unit", read_only=True)
+
+    class Meta:
+        model = OTCSaleItem
+        fields = ["id", "sale", "medicine", "medicine_name", "medicine_unit", "batch", "quantity", "unit_price", "subtotal"]
+        read_only_fields = ["id", "sale", "batch", "unit_price", "subtotal"]
+
+
+class OTCSaleItemInputSerializer(serializers.Serializer):
+    """Nested-write shape used only inside OTCSaleCreateSerializer's cart payload."""
+    medicine = serializers.PrimaryKeyRelatedField(queryset=Medicine.objects.all())
+    quantity = serializers.IntegerField(min_value=1)
+
+
+class OTCSaleSerializer(serializers.ModelSerializer):
+    items = OTCSaleItemSerializer(many=True, read_only=True)
+    served_by_name = serializers.CharField(source="served_by.get_full_name", read_only=True)
+    balance = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = OTCSale
+        fields = [
+            "id", "sale_number", "customer_name", "customer_phone", "items",
+            "subtotal", "discount", "total_amount", "amount_paid", "balance",
+            "payment_method", "reference_number", "served_by", "served_by_name",
+            "qr_code", "sold_at",
+        ]
+        read_only_fields = [
+            "id", "sale_number", "items", "subtotal", "total_amount", "served_by",
+            "qr_code", "sold_at",
+        ]
+
+
+class OTCSaleCreateSerializer(serializers.Serializer):
+    """
+    Accepts a full POS cart in one shot: optional walk-in customer info,
+    payment details, and a list of {medicine, quantity} line items. The view
+    resolves stock (FEFO), computes totals, and creates OTCSale + OTCSaleItem
+    rows inside a single transaction — mirroring PharmacyDispenseViewSet.
+    """
+    customer_name = serializers.CharField(required=False, allow_blank=True, default="")
+    customer_phone = serializers.CharField(required=False, allow_blank=True, default="")
+    discount = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=0)
+    payment_method = serializers.ChoiceField(choices=["CASH", "MPESA", "CARD", "INSURANCE"])
+    reference_number = serializers.CharField(required=False, allow_blank=True, default="")
+    amount_paid = serializers.DecimalField(max_digits=10, decimal_places=2)
+    items = OTCSaleItemInputSerializer(many=True)
+
+    def validate_items(self, value):
+        if not value:
+            raise serializers.ValidationError("A sale must have at least one item.")
+        return value
 
 
 # ---------------------------------------------------------------------------
