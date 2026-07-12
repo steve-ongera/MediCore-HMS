@@ -54,6 +54,7 @@ const NAV_GROUPS = [
     links: [
       { to: "/pharmacy", label: "Pharmacy", icon: "bi-capsule" },
       { to: "/inventory", label: "Inventory", icon: "bi-box-seam" },
+      { to: "/suppliers", label: "Suppliers", icon: "bi-truck" },
     ],
   },
   {
@@ -64,6 +65,7 @@ const NAV_GROUPS = [
       { to: "/audit-logs", label: "Audit Log", icon: "bi-journal-text", roles: [] },
       { to: "/users", label: "Staff", icon: "bi-person-badge", roles: [] },
       { to: "/departments", label: "Departments", icon: "bi-building", roles: [] },
+      { to: "/settings/test-catalog", label: "Test Catalog", icon: "bi-clipboard2-data", roles: [] },
     ],
   },
   {
