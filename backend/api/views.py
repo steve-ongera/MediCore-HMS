@@ -20,7 +20,7 @@ from api.models import (
     Prescription, LabTestCatalog, LabOrder, LabOrderStatus, LabResult,
     RadiologyTestCatalog, RadiologyOrder, RadiologyOrderStatus, RadiologyResult,
     Supplier, Medicine, MedicineBatch, StockTransaction, StockTransactionType,
-    PharmacyDispense, AuditLog, InvoiceSourceType,
+    PharmacyDispense, AuditLog, InvoiceSourceType, OTCSale, OTCSaleItem,
 )
 from api.permissions import (
     HasRole, IsReceptionist, IsCashierOrAccountant, IsNurse, IsDoctor,
@@ -38,7 +38,7 @@ from api.serializers import (
     PrescriptionSerializer, LabTestCatalogSerializer, LabOrderSerializer, LabResultSerializer,
     RadiologyTestCatalogSerializer, RadiologyOrderSerializer, RadiologyResultSerializer,
     SupplierSerializer, MedicineSerializer, MedicineBatchSerializer, StockTransactionSerializer,
-    PharmacyDispenseSerializer, AuditLogSerializer,
+    PharmacyDispenseSerializer, AuditLogSerializer, OTCSaleSerializer, OTCSaleCreateSerializer,
 )
 from api.utils import generate_qr_code
 
@@ -636,6 +636,115 @@ class OutOfStockError(APIException):
 
 
 # ---------------------------------------------------------------------------
+# Walk-in / OTC Pharmacy Sales (POS)
+# ---------------------------------------------------------------------------
+class OTCSaleViewSet(BaseModelViewSet):
+    """
+    Direct, patient-free medicine sales — a retail POS transaction rather
+    than a clinical workflow. Sales are immutable once made (no PATCH/PUT),
+    matching the PaymentViewSet/InvoiceViewSet convention elsewhere.
+    """
+    queryset = OTCSale.objects.prefetch_related("items__medicine").select_related("served_by").all()
+    serializer_class = OTCSaleSerializer
+    search_fields = ["sale_number", "customer_name", "customer_phone"]
+    http_method_names = ["get", "post", "head", "options"]
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return OTCSaleCreateSerializer
+        return OTCSaleSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        with transaction.atomic():
+            sale = OTCSale.objects.create(
+                customer_name=data.get("customer_name", ""),
+                customer_phone=data.get("customer_phone", ""),
+                discount=data.get("discount", 0),
+                payment_method=data["payment_method"],
+                reference_number=data.get("reference_number", ""),
+                amount_paid=data["amount_paid"],
+                served_by=request.user,
+            )
+
+            subtotal = 0
+            for item in data["items"]:
+                medicine = item["medicine"]
+                quantity = item["quantity"]
+
+                # FEFO: earliest-expiring batch with enough stock, same as PharmacyDispenseViewSet.
+                batch = (
+                    MedicineBatch.objects.filter(medicine=medicine, quantity_remaining__gte=quantity)
+                    .order_by("expiry_date").first()
+                )
+                if not batch:
+                    raise OutOfStockError(f"{medicine.name} is out of stock.")
+
+                sale_item = OTCSaleItem.objects.create(
+                    sale=sale, medicine=medicine, batch=batch,
+                    quantity=quantity, unit_price=medicine.unit_price,
+                )
+                subtotal += sale_item.subtotal
+
+                batch.quantity_remaining -= quantity
+                batch.save(update_fields=["quantity_remaining"])
+
+                StockTransaction.objects.create(
+                    medicine=medicine, batch=batch, transaction_type=StockTransactionType.STOCK_OUT,
+                    quantity=quantity, reason=f"OTC sale {sale.sale_number}",
+                    performed_by=request.user,
+                )
+
+            sale.subtotal = subtotal
+            sale.total_amount = subtotal - sale.discount
+            sale.save(update_fields=["subtotal", "total_amount"])
+
+            qr_payload = f"OTC:{sale.sale_number}|AMOUNT:{sale.total_amount}"
+            sale.qr_code = generate_qr_code(qr_payload, f"otc_receipt_{sale.sale_number}")
+            sale.save(update_fields=["qr_code"])
+
+        return Response(
+            OTCSaleSerializer(sale, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=["get"], url_path="receipt")
+    def receipt(self, request, pk=None):
+        """Structured receipt payload for the frontend to render/print — mirrors PaymentViewSet.receipt."""
+        sale = self.get_object()
+        qr_code_url = request.build_absolute_uri(sale.qr_code.url) if sale.qr_code else None
+
+        return Response({
+            "hospital_name": "City General Hospital",
+            "sale_number": sale.sale_number,
+            "customer_name": sale.customer_name or "Walk-in Customer",
+            "customer_phone": sale.customer_phone,
+            "served_by": sale.served_by.get_full_name() if sale.served_by else None,
+            "items": [
+                {
+                    "medicine_name": item.medicine.name,
+                    "quantity": item.quantity,
+                    "unit_price": str(item.unit_price),
+                    "subtotal": str(item.subtotal),
+                }
+                for item in sale.items.all()
+            ],
+            "subtotal": str(sale.subtotal),
+            "discount": str(sale.discount),
+            "total_amount": str(sale.total_amount),
+            "amount_paid": str(sale.amount_paid),
+            "balance": str(sale.balance),
+            "payment_method": sale.payment_method,
+            "reference_number": sale.reference_number,
+            "qr_code_url": qr_code_url,
+            "sold_at": sale.sold_at,
+        })
+
+
+# ---------------------------------------------------------------------------
 # Audit Log (read-only, Super Admin)
 # ---------------------------------------------------------------------------
 class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
@@ -733,6 +842,12 @@ class ReportsView(APIView):
                 PharmacyDispense.objects.filter(dispensed_at__date__gte=date_from, dispensed_at__date__lte=date_to)
                 .values("prescription__medicine__name")
                 .annotate(total_qty=Sum("quantity_dispensed")).order_by("-total_qty")
+            )
+        elif report_type == "otc_sales":
+            data = list(
+                OTCSaleItem.objects.filter(sale__sold_at__date__gte=date_from, sale__sold_at__date__lte=date_to)
+                .values("medicine__name")
+                .annotate(total_qty=Sum("quantity"), total_revenue=Sum("subtotal")).order_by("-total_revenue")
             )
         elif report_type == "lab_revenue":
             data = list(invoices.filter(source_type=InvoiceSourceType.LAB).aggregate(total=Sum("amount_paid")).items())
