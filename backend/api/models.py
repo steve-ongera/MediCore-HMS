@@ -10,6 +10,7 @@ from api.utils import (
     generate_visit_number,
     generate_invoice_number,
     generate_receipt_number,
+    generate_otc_sale_number,
     calculate_bmi,
 )
 
@@ -660,3 +661,72 @@ class PharmacyDispense(BaseModel):
 
     class Meta:
         db_table = "pharmacy_dispenses"
+
+
+# ---------------------------------------------------------------------------
+# Walk-in / OTC Pharmacy Sales (POS)
+# ---------------------------------------------------------------------------
+# Level 3-5 facilities routinely sell over-the-counter medicine to people who
+# are not, and never will be, a registered Patient — someone buying
+# paracetamol doesn't need a hospital number. OTCSale is deliberately
+# independent of Patient/Visit/Invoice: it's a self-contained retail ledger
+# that still uses the same MedicineBatch/StockTransaction stock machinery as
+# PharmacyDispense (FEFO batch selection, stock deduction, audit trail).
+class OTCSale(BaseModel):
+    sale_number = models.CharField(max_length=30, unique=True, editable=False)
+
+    # Optional — a walk-in customer is not required to give any identifying
+    # information. Kept as free text rather than a Patient FK on purpose.
+    customer_name = models.CharField(max_length=150, blank=True)
+    customer_phone = models.CharField(max_length=20, blank=True)
+
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=0, editable=False)
+    discount = models.DecimalField(max_digits=10, decimal_places=2, default=0, validators=[MinValueValidator(0)])
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, editable=False)
+    amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    payment_method = models.CharField(max_length=20, choices=PaymentMethod.choices, default=PaymentMethod.CASH)
+    reference_number = models.CharField(max_length=100, blank=True)  # M-Pesa code, card auth...
+
+    served_by = models.ForeignKey(User, null=True, on_delete=models.SET_NULL, related_name="otc_sales")
+    qr_code = models.ImageField(upload_to="otc_receipts/qr/", null=True, blank=True)
+    sold_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "otc_sales"
+
+    def save(self, *args, **kwargs):
+        if not self.sale_number:
+            self.sale_number = generate_otc_sale_number()
+        super().save(*args, **kwargs)
+
+    def recalculate_totals(self):
+        self.subtotal = sum(item.subtotal for item in self.items.all())
+        self.total_amount = self.subtotal - self.discount
+        self.save(update_fields=["subtotal", "total_amount"])
+
+    @property
+    def balance(self):
+        return self.total_amount - self.amount_paid
+
+    def __str__(self):
+        return f"{self.sale_number} - KES {self.total_amount}"
+
+
+class OTCSaleItem(BaseModel):
+    sale = models.ForeignKey(OTCSale, on_delete=models.CASCADE, related_name="items")
+    medicine = models.ForeignKey(Medicine, on_delete=models.PROTECT, related_name="otc_sale_items")
+    batch = models.ForeignKey(MedicineBatch, null=True, on_delete=models.SET_NULL, related_name="otc_sale_items")
+    quantity = models.PositiveIntegerField()
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2, editable=False)
+
+    class Meta:
+        db_table = "otc_sale_items"
+
+    def save(self, *args, **kwargs):
+        self.subtotal = self.unit_price * self.quantity
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.medicine.name} x{self.quantity}"

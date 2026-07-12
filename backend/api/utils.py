@@ -1,3 +1,4 @@
+#api/utis.py
 import io
 import random
 import string
@@ -75,3 +76,16 @@ def calculate_age(dob):
         return None
     today = date.today()
     return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+
+def generate_otc_sale_number():
+    """
+    Generate OTC Sale Number
+    Format: OTC-YYYYMMDD-0001
+    Example: OTC-20260712-0001
+    """
+    from api.models import OTCSale
+
+    today = date.today()
+    prefix = f"OTC-{today.strftime('%Y%m%d')}"
+    count = OTCSale.all_objects.filter(created_at__date=today).count() + 1
+    return f"{prefix}-{count:04d}"
