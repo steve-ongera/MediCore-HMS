@@ -21,6 +21,7 @@ import PatientProfile from "./pages/reception/PatientProfile.jsx";
 
 import Billing from "./pages/billing/Billing.jsx";
 import Payments from "./pages/billing/Payments.jsx";
+import WalkInSale from "./pages/billing/WalkInSale.jsx";
 
 import QueueBoard from "./pages/queue/QueueBoard.jsx";
 
@@ -140,6 +141,14 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={[ROLES.CASHIER, ROLES.ACCOUNTANT]}>
               <Payments />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/billing/walk-in-sale"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.CASHIER, ROLES.ACCOUNTANT]}>
+              <WalkInSale />
             </ProtectedRoute>
           }
         />

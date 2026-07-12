@@ -1,4 +1,4 @@
-//src/pages/billing/WalkInSale.jsx
+// src/pages/billing/WalkInSale.jsx
 import { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { searchMedicines, createOTCSale } from "../../services/api";
@@ -9,6 +9,101 @@ const PAYMENT_METHODS = [
   { value: "MPESA", label: "M-Pesa" },
   { value: "CARD", label: "Card" },
 ];
+
+// Page-specific layout primitives (split POS columns, search dropdown, qty
+// stepper, summary lines) that don't have a home in main.css yet. Built
+// entirely from the shared design tokens so it stays visually consistent —
+// worth promoting into main.css if this pattern gets reused elsewhere.
+function WalkInSaleStyles() {
+  return (
+    <style>{`
+      .wis-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 360px;
+        gap: var(--space-5);
+        align-items: start;
+      }
+      @media (max-width: 960px) {
+        .wis-layout {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .wis-results {
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        max-height: 280px;
+        overflow-y: auto;
+        box-shadow: var(--shadow-sm);
+      }
+      .wis-results__item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-3);
+        width: 100%;
+        padding: var(--space-3) var(--space-4);
+        border-bottom: 1px solid var(--border-subtle);
+        text-align: left;
+        transition: background var(--duration-fast) var(--ease-standard);
+      }
+      .wis-results__item:last-child {
+        border-bottom: none;
+      }
+      .wis-results__item:hover:not(:disabled) {
+        background: var(--surface-hover);
+      }
+      .wis-results__item:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .wis-stepper {
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+      }
+      .wis-stepper button {
+        width: 28px;
+        height: 28px;
+        display: grid;
+        place-items: center;
+        color: var(--text-secondary);
+        transition: background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
+      }
+      .wis-stepper button:hover {
+        background: var(--surface-hover);
+        color: var(--text-primary);
+      }
+      .wis-stepper span {
+        width: 32px;
+        text-align: center;
+        font-family: var(--font-mono);
+        font-size: var(--fs-sm);
+        color: var(--text-primary);
+      }
+
+      .wis-summary-line {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: var(--space-2) 0;
+        font-size: var(--fs-sm);
+      }
+      .wis-summary-line--total {
+        border-top: 1px solid var(--border-subtle);
+        border-bottom: 1px solid var(--border-subtle);
+        margin: var(--space-2) 0 var(--space-4);
+        padding: var(--space-3) 0;
+        font-weight: var(--fw-semibold);
+        font-size: var(--fs-md);
+        color: var(--text-primary);
+      }
+    `}</style>
+  );
+}
 
 export default function WalkInSale() {
   const [query, setQuery] = useState("");
@@ -116,6 +211,8 @@ export default function WalkInSale() {
 
   return (
     <>
+      <WalkInSaleStyles />
+
       <div className="page-header">
         <div>
           <div className="page-eyebrow">Pharmacy</div>
@@ -124,41 +221,43 @@ export default function WalkInSale() {
         </div>
       </div>
 
-      <div className="pos-layout">
-        <div className="pos-layout__main">
-          <div className="card mb-3">
+      <div className="wis-layout">
+        <div>
+          <div className="card mb-5">
             <div className="card-header">
-              <span className="cell-primary">Find Medicine</span>
+              <h2 className="card-title">Find Medicine</h2>
             </div>
             <div className="card-body">
               <input
-                className="form-control"
+                className="input"
                 placeholder="Search by medicine or generic name..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 autoFocus
               />
 
-              {searching && <p className="text-tertiary text-sm mt-2">Searching...</p>}
+              {searching && <p className="text-xs text-faint mt-2">Searching...</p>}
 
               {results.length > 0 && (
-                <div className="pos-results mt-2">
+                <div className="wis-results mt-2">
                   {results.map((medicine) => (
                     <button
                       type="button"
                       key={medicine.id}
-                      className="pos-results__item"
+                      className="wis-results__item"
                       onClick={() => addToCart(medicine)}
                       disabled={medicine.current_stock <= 0}
                     >
-                      <div>
-                        <div className="cell-primary">{medicine.name}</div>
-                        <div className="text-2xs text-tertiary">
+                      <div className="min-w-0">
+                        <div className="font-medium truncate">{medicine.name}</div>
+                        <div className="text-2xs text-faint truncate">
                           {medicine.generic_name || "—"} &middot; {medicine.current_stock} {medicine.unit}
                           {medicine.current_stock !== 1 ? "s" : ""} in stock
                         </div>
                       </div>
-                      <span className="cell-mono">KES {Number(medicine.unit_price).toLocaleString()}</span>
+                      <span className="font-mono text-sm flex-shrink-0">
+                        KES {Number(medicine.unit_price).toLocaleString()}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -168,151 +267,156 @@ export default function WalkInSale() {
 
           <div className="card">
             <div className="card-header">
-              <span className="cell-primary">Cart</span>
-              <span className="text-tertiary text-sm">
+              <h2 className="card-title">Cart</h2>
+              <span className="text-xs text-faint">
                 {cart.length} item{cart.length !== 1 ? "s" : ""}
               </span>
             </div>
             <div className="card-body p-0">
               {cart.length === 0 ? (
-                <p className="text-tertiary text-center py-4">Cart is empty. Search for a medicine to add it.</p>
+                <div className="empty-state">
+                  <div className="empty-state__icon">
+                    <i className="bi bi-cart" style={{ fontSize: "1.25rem" }}></i>
+                  </div>
+                  <div className="empty-state__title">Cart is empty</div>
+                  <div className="empty-state__desc">Search for a medicine above to add it to the sale.</div>
+                </div>
               ) : (
-                <table className="table-simple">
-                  <thead>
-                    <tr>
-                      <th>Medicine</th>
-                      <th>Qty</th>
-                      <th>Unit Price</th>
-                      <th>Subtotal</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {cart.map((item) => (
-                      <tr key={item.medicine.id}>
-                        <td className="cell-primary">{item.medicine.name}</td>
-                        <td>
-                          <div className="qty-stepper">
-                            <button type="button" onClick={() => updateQuantity(item.medicine.id, item.quantity - 1)}>
-                              <i className="bi bi-dash"></i>
-                            </button>
-                            <span>{item.quantity}</span>
-                            <button type="button" onClick={() => updateQuantity(item.medicine.id, item.quantity + 1)}>
-                              <i className="bi bi-plus"></i>
-                            </button>
-                          </div>
-                        </td>
-                        <td className="cell-mono">KES {Number(item.medicine.unit_price).toLocaleString()}</td>
-                        <td className="cell-mono">
-                          KES {(Number(item.medicine.unit_price) * item.quantity).toLocaleString()}
-                        </td>
-                        <td className="text-end">
-                          <button
-                            className="btn-icon-only"
-                            style={{ color: "var(--danger-strong)" }}
-                            onClick={() => removeFromCart(item.medicine.id)}
-                            title="Remove"
-                          >
-                            <i className="bi bi-trash"></i>
-                          </button>
-                        </td>
+                <div className="table-scroll">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Medicine</th>
+                        <th>Qty</th>
+                        <th>Unit Price</th>
+                        <th>Subtotal</th>
+                        <th></th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {cart.map((item) => (
+                        <tr key={item.medicine.id}>
+                          <td className="cell-primary">{item.medicine.name}</td>
+                          <td>
+                            <div className="wis-stepper">
+                              <button
+                                type="button"
+                                onClick={() => updateQuantity(item.medicine.id, item.quantity - 1)}
+                              >
+                                <i className="bi bi-dash"></i>
+                              </button>
+                              <span>{item.quantity}</span>
+                              <button
+                                type="button"
+                                onClick={() => updateQuantity(item.medicine.id, item.quantity + 1)}
+                              >
+                                <i className="bi bi-plus"></i>
+                              </button>
+                            </div>
+                          </td>
+                          <td className="cell-mono">KES {Number(item.medicine.unit_price).toLocaleString()}</td>
+                          <td className="cell-mono">
+                            KES {(Number(item.medicine.unit_price) * item.quantity).toLocaleString()}
+                          </td>
+                          <td className="cell-actions">
+                            <button
+                              type="button"
+                              className="btn-icon-only"
+                              style={{ color: "var(--danger-strong)" }}
+                              onClick={() => removeFromCart(item.medicine.id)}
+                              title="Remove"
+                            >
+                              <i className="bi bi-trash"></i>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           </div>
         </div>
 
-        <div className="pos-layout__side">
+        <div>
           <form className="card" onSubmit={handleCompleteSale}>
             <div className="card-header">
-              <span className="cell-primary">Order Summary</span>
+              <h2 className="card-title">Order Summary</h2>
             </div>
             <div className="card-body">
-              <div className="form-field">
-                <label className="form-label">Customer name (optional)</label>
+              <div className="field">
+                <label className="field-label">Customer name (optional)</label>
                 <input
-                  className="form-control"
+                  className="input"
                   placeholder="Walk-in customer"
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
                 />
               </div>
 
-              <div className="form-field">
-                <label className="form-label">Customer phone (optional)</label>
-                <input
-                  className="form-control"
-                  value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
-                />
+              <div className="field">
+                <label className="field-label">Customer phone (optional)</label>
+                <input className="input" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
               </div>
 
-              <div className="pos-summary-line">
-                <span className="text-tertiary">Subtotal</span>
-                <span className="cell-mono">KES {subtotal.toLocaleString()}</span>
+              <div className="wis-summary-line">
+                <span className="text-muted">Subtotal</span>
+                <span className="font-mono">KES {subtotal.toLocaleString()}</span>
               </div>
 
-              <div className="form-field">
-                <label className="form-label">Discount (KES)</label>
+              <div className="field">
+                <label className="field-label">Discount (KES)</label>
                 <input
                   type="number"
                   min="0"
                   step="0.01"
-                  className="form-control"
+                  className="input"
                   value={discount}
                   onChange={(e) => setDiscount(e.target.value)}
                 />
               </div>
 
-              <div className="pos-summary-line pos-summary-line--total">
+              <div className="wis-summary-line wis-summary-line--total">
                 <span>Total</span>
-                <span className="cell-mono">KES {total.toLocaleString()}</span>
+                <span className="font-mono">KES {total.toLocaleString()}</span>
               </div>
 
-              <div className="form-field">
-                <label className="form-label">Payment method</label>
-                <select
-                  className="form-select"
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                >
+              <div className="field">
+                <label className="field-label">Payment method</label>
+                <select className="select" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
                   {PAYMENT_METHODS.map((m) => (
-                    <option key={m.value} value={m.value}>{m.label}</option>
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
                   ))}
                 </select>
               </div>
 
               {paymentMethod !== "CASH" && (
-                <div className="form-field">
-                  <label className="form-label">
+                <div className="field">
+                  <label className="field-label">
                     {paymentMethod === "MPESA" ? "M-Pesa code" : "Card auth reference"}
                   </label>
-                  <input
-                    className="form-control"
-                    value={referenceNumber}
-                    onChange={(e) => setReferenceNumber(e.target.value)}
-                  />
+                  <input className="input" value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} />
                 </div>
               )}
 
-              <div className="form-field">
-                <label className="form-label">Amount paid (KES)</label>
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label className="field-label">Amount paid (KES)</label>
                 <input
                   type="number"
                   min="0"
                   step="0.01"
-                  className="form-control"
+                  className="input"
                   placeholder={total.toFixed(2)}
                   value={amountPaid}
                   onChange={(e) => setAmountPaid(e.target.value)}
                 />
               </div>
             </div>
-            <div className="card-footer">
-              <button type="submit" className="btn btn-primary w-100" disabled={submitting || cart.length === 0}>
+            <div className="card-footer" style={{ display: "block" }}>
+              <button type="submit" className="btn btn-primary btn-block" disabled={submitting || cart.length === 0}>
                 {submitting ? "Processing..." : `Complete Sale — KES ${total.toLocaleString()}`}
               </button>
             </div>
@@ -322,47 +426,49 @@ export default function WalkInSale() {
 
       {receipt && (
         <div className="modal-overlay">
-          <div className="modal-panel">
-            <div className="modal-panel__header">
-              <h2 className="modal-panel__title">Sale Complete</h2>
-              <button type="button" className="btn-icon-only" onClick={() => setReceipt(null)}>
+          <div className="modal modal-sm">
+            <div className="modal-header">
+              <div>
+                <h3 className="modal-title">Sale Complete</h3>
+                <p className="modal-desc">{receipt.sale_number}</p>
+              </div>
+              <button type="button" className="modal-close" onClick={() => setReceipt(null)}>
                 <i className="bi bi-x-lg"></i>
               </button>
             </div>
-            <div className="modal-panel__body">
-              <p className="cell-primary">{receipt.sale_number}</p>
-              <p className="text-tertiary text-sm">
-                {receipt.customer_name || "Walk-in Customer"} &middot; {formatDateTime(receipt.sold_at)}
-              </p>
+            <div className="modal-body">
+              <div className="receipt" style={{ width: "100%", padding: 0 }}>
+                <div className="receipt__header">
+                  <div className="receipt__logo">H</div>
+                  <div className="receipt__org">City General Hospital</div>
+                  <div className="receipt__meta">
+                    {receipt.customer_name || "Walk-in Customer"} &middot; {formatDateTime(receipt.sold_at)}
+                  </div>
+                </div>
 
-              <table className="table-simple">
-                <thead>
-                  <tr>
-                    <th>Medicine</th>
-                    <th>Qty</th>
-                    <th>Subtotal</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {receipt.items.map((item) => (
-                    <tr key={item.id}>
-                      <td>{item.medicine_name}</td>
-                      <td>{item.quantity}</td>
-                      <td className="cell-mono">KES {Number(item.subtotal).toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                <div className="receipt__divider" />
 
-              <div className="pos-summary-line pos-summary-line--total">
-                <span>Total Paid</span>
-                <span className="cell-mono">KES {Number(receipt.total_amount).toLocaleString()}</span>
+                {receipt.items.map((item) => (
+                  <div className="receipt__row" key={item.id}>
+                    <span className="label">
+                      {item.medicine_name} &times; {item.quantity}
+                    </span>
+                    <span className="value">KES {Number(item.subtotal).toLocaleString()}</span>
+                  </div>
+                ))}
+
+                <div className="receipt__total-row">
+                  <span>Total Paid</span>
+                  <span>KES {Number(receipt.total_amount).toLocaleString()}</span>
+                </div>
               </div>
             </div>
-            <div className="modal-panel__footer">
-              <button type="button" className="btn btn-outline" onClick={() => setReceipt(null)}>Close</button>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-outline" onClick={() => setReceipt(null)}>
+                Close
+              </button>
               <button type="button" className="btn btn-primary" onClick={() => window.print()}>
-                <i className="bi bi-printer me-2"></i>
+                <i className="bi bi-printer" style={{ marginRight: "var(--space-2)" }}></i>
                 Print Receipt
               </button>
             </div>
