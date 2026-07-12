@@ -221,12 +221,13 @@ class ConsultationDiagnosisSerializer(serializers.ModelSerializer):
 
 class PrescriptionSerializer(serializers.ModelSerializer):
     medicine_name = serializers.CharField(source="medicine.name", read_only=True)
+    patient_name = serializers.CharField(source="consultation.visit.patient.full_name", read_only=True)
 
     class Meta:
         model = Prescription
         fields = [
             "id", "consultation", "medicine", "medicine_name", "dosage", "frequency",
-            "duration", "quantity", "instructions", "is_dispensed",
+            "duration", "quantity", "instructions", "is_dispensed", "patient_name",
         ]
         read_only_fields = ["id", "is_dispensed"]
 

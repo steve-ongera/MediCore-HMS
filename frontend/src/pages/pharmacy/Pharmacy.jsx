@@ -78,7 +78,10 @@ export default function Pharmacy() {
     {
       key: "patient_name",
       label: "Patient",
-      render: (row) => row.consultation?.visit?.patient?.full_name || "—",
+      // Backend now returns a flat `patient_name` field on PrescriptionSerializer
+      // (source="consultation.visit.patient.full_name"), matching the pattern
+      // used by PharmacyDispenseSerializer, VisitSerializer, etc.
+      render: (row) => row.patient_name || "—",
     },
     {
       key: "medicine_name",
@@ -280,7 +283,7 @@ export default function Pharmacy() {
                     {selectedPrescription.dosage} · {selectedPrescription.frequency} · {selectedPrescription.duration}
                   </div>
                   <div className="text-sm text-muted">
-                    Patient: {selectedPrescription.consultation?.visit?.patient?.full_name || "—"}
+                    Patient: {selectedPrescription.patient_name || "—"}
                   </div>
                 </div>
                 <div className="text-sm">
