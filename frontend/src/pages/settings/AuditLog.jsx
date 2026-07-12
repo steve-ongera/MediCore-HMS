@@ -1,7 +1,11 @@
-// src/pages/settings/AuditLog.jsx
-import { Fragment, useEffect, useState } from "react";
-
+import { useEffect, useState } from "react";
+import { toast } from "react-toastify";
 import { getAuditLogs, getUsers } from "../../services/api";
+import DataTable from "../../components/DataTable";
+import SearchBar from "../../components/SearchBar";
+import Pagination from "../../components/Pagination";
+import StatusBadge from "../../components/StatusBadge";
+import { formatDateTime } from "../../utils/formatters";
 
 const ACTION_OPTIONS = [
   { value: "CREATE", label: "Create" },
@@ -9,10 +13,10 @@ const ACTION_OPTIONS = [
   { value: "DELETE", label: "Delete" },
 ];
 
-const ACTION_BADGE = {
-  CREATE: "text-bg-success",
-  UPDATE: "text-bg-warning",
-  DELETE: "text-bg-danger",
+const ACTION_VARIANT = {
+  CREATE: "success",
+  UPDATE: "warning",
+  DELETE: "danger",
 };
 
 const toArray = (data) => (Array.isArray(data) ? data : data?.results ?? []);
@@ -21,168 +25,204 @@ export default function AuditLog() {
   const [logs, setLogs] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [expandedId, setExpandedId] = useState(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const [search, setSearch] = useState("");
-  const [modelName, setModelName] = useState("");
   const [action, setAction] = useState("");
   const [userId, setUserId] = useState("");
+  const [viewingLog, setViewingLog] = useState(null);
+
+  const pageSize = 25;
 
   useEffect(() => {
     getUsers().then((data) => setUsers(toArray(data))).catch(() => {});
   }, []);
 
   useEffect(() => {
-    load();
+    loadLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, modelName, action, userId]);
+  }, [page, search, action, userId]);
 
-  async function load() {
+  const loadLogs = async () => {
     setLoading(true);
-    setError("");
     try {
-      const data = await getAuditLogs({
-        search: search || undefined,
-        model_name: modelName || undefined,
-        action: action || undefined,
-        user: userId || undefined,
-      });
-      setLogs(toArray(data));
+      const params = { page, page_size: pageSize };
+      if (search) params.search = search;
+      if (action) params.action = action;
+      if (userId) params.user = userId;
+      const data = await getAuditLogs(params);
+      setLogs(data.results || toArray(data));
+      setTotal(data.count ?? toArray(data).length);
     } catch (err) {
-      setError(err.message);
+      toast.error(err.message || "Failed to load audit log");
     } finally {
       setLoading(false);
     }
-  }
+  };
 
-  // Model names are free-text on the backend, so the filter list is built
-  // from whatever's actually appeared in results rather than a fixed enum.
-  const knownModels = Array.from(new Set(logs.map((l) => l.model_name))).sort();
-
-  function toggleExpand(id) {
-    setExpandedId((current) => (current === id ? null : id));
-  }
+  const columns = [
+    {
+      key: "timestamp",
+      label: "Timestamp",
+      render: (row) => formatDateTime(row.timestamp),
+    },
+    {
+      key: "user_name",
+      label: "Staff",
+      render: (row) => row.user_name || "System",
+    },
+    {
+      key: "action",
+      label: "Action",
+      render: (row) => <StatusBadge status={row.action} variant={ACTION_VARIANT[row.action] || "neutral"} />,
+    },
+    {
+      key: "model_name",
+      label: "Model",
+      render: (row) => row.model_name,
+    },
+    {
+      key: "object_id",
+      label: "Record ID",
+      render: (row) => <span className="cell-mono text-2xs">{row.object_id}</span>,
+    },
+    {
+      key: "ip_address",
+      label: "IP Address",
+      render: (row) => row.ip_address || "—",
+    },
+    {
+      key: "actions",
+      label: "",
+      render: (row) => (
+        <div className="flex gap-1 justify-end">
+          <button className="btn-icon-only" onClick={() => setViewingLog(row)} title="View changes">
+            <i className="bi bi-eye"></i>
+          </button>
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <div className="page">
-      <div className="page__header mb-3">
-        <h4 className="mb-0">Audit Log</h4>
-        <small className="text-muted">Record of who changed what, and when</small>
-      </div>
-
-      <div className="row g-2 mb-3">
-        <div className="col-md-4">
-          <input
-            className="form-control"
-            placeholder="Search by record ID or model..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <div className="col-md-3">
-          <select className="form-select" value={action} onChange={(e) => setAction(e.target.value)}>
-            <option value="">All actions</option>
-            {ACTION_OPTIONS.map((a) => (
-              <option key={a.value} value={a.value}>{a.label}</option>
-            ))}
-          </select>
-        </div>
-        <div className="col-md-3">
-          <select className="form-select" value={userId} onChange={(e) => setUserId(e.target.value)}>
-            <option value="">All staff</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>{u.full_name || u.username}</option>
-            ))}
-          </select>
-        </div>
-        <div className="col-md-2">
-          <select className="form-select" value={modelName} onChange={(e) => setModelName(e.target.value)}>
-            <option value="">All models</option>
-            {knownModels.map((m) => (
-              <option key={m} value={m}>{m}</option>
-            ))}
-          </select>
+    <>
+      <div className="page-header">
+        <div>
+          <div className="page-eyebrow">Settings</div>
+          <h1 className="page-title">Audit Log</h1>
+          <p className="page-subtitle">Record of who changed what, and when</p>
         </div>
       </div>
-
-      {error && <div className="alert alert-danger">{error}</div>}
 
       <div className="card">
-        <div className="table-responsive">
-          <table className="table table-hover align-middle mb-0">
-            <thead>
-              <tr>
-                <th>Timestamp</th>
-                <th>Staff</th>
-                <th>Action</th>
-                <th>Model</th>
-                <th>Record ID</th>
-                <th>IP Address</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={7} className="text-center text-muted py-4">Loading...</td></tr>
-              ) : logs.length === 0 ? (
-                <tr><td colSpan={7} className="text-center text-muted py-4">No audit entries found.</td></tr>
-              ) : (
-                logs.map((log) => (
-                  <Fragment key={log.id}>
-                    <tr
-                      onClick={() => toggleExpand(log.id)}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <td>{new Date(log.timestamp).toLocaleString()}</td>
-                      <td>{log.user_name || "System"}</td>
-                      <td><span className={`badge ${ACTION_BADGE[log.action] || "text-bg-light"}`}>{log.action}</span></td>
-                      <td>{log.model_name}</td>
-                      <td className="font-monospace small">{log.object_id}</td>
-                      <td>{log.ip_address || "—"}</td>
-                      <td className="text-end">
-                        <i className={`bi ${expandedId === log.id ? "bi-chevron-up" : "bi-chevron-down"}`} />
-                      </td>
-                    </tr>
-                    {expandedId === log.id && (
-                      <tr>
-                        <td colSpan={7} className="bg-light">
-                          {Object.keys(log.changes || {}).length === 0 ? (
-                            <span className="text-muted">No field-level changes recorded.</span>
-                          ) : (
-                            <table className="table table-sm mb-0">
-                              <thead>
-                                <tr>
-                                  <th>Field</th>
-                                  <th>Before</th>
-                                  <th>After</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {Object.entries(log.changes).map(([field, value]) => (
-                                  <tr key={field}>
-                                    <td className="font-monospace">{field}</td>
-                                    <td className="text-muted">
-                                      {Array.isArray(value) ? String(value[0]) : "—"}
-                                    </td>
-                                    <td>
-                                      {Array.isArray(value) ? String(value[1]) : String(value)}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          )}
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="card-header">
+          <div className="flex items-center gap-3 flex-wrap">
+            <SearchBar
+              placeholder="Search by record ID or model..."
+              onSearch={(val) => {
+                setSearch(val);
+                setPage(1);
+              }}
+              delay={400}
+            />
+            <select
+              className="form-select form-select-sm"
+              style={{ maxWidth: 180 }}
+              value={action}
+              onChange={(e) => {
+                setAction(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">All actions</option>
+              {ACTION_OPTIONS.map((a) => (
+                <option key={a.value} value={a.value}>{a.label}</option>
+              ))}
+            </select>
+            <select
+              className="form-select form-select-sm"
+              style={{ maxWidth: 220 }}
+              value={userId}
+              onChange={(e) => {
+                setUserId(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">All staff</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>{u.full_name || u.username}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <span className="text-tertiary text-sm">
+              {total} entr{total !== 1 ? "ies" : "y"}
+            </span>
+          </div>
+        </div>
+
+        <div className="card-body p-0">
+          <DataTable
+            columns={columns}
+            data={logs}
+            loading={loading}
+            emptyMessage="No audit entries found."
+          />
+        </div>
+
+        <div className="card-footer">
+          <Pagination page={page} count={total} pageSize={pageSize} onPageChange={setPage} />
         </div>
       </div>
-    </div>
+
+      {viewingLog && (
+        <div className="modal-overlay">
+          <div className="modal-panel">
+            <div className="modal-panel__header">
+              <h2 className="modal-panel__title">
+                {viewingLog.action} — {viewingLog.model_name}
+              </h2>
+              <button type="button" className="btn-icon-only" onClick={() => setViewingLog(null)}>
+                <i className="bi bi-x-lg"></i>
+              </button>
+            </div>
+
+            <div className="modal-panel__body">
+              <p className="text-tertiary text-sm">
+                {viewingLog.user_name || "System"} &middot; {formatDateTime(viewingLog.timestamp)}
+              </p>
+
+              {Object.keys(viewingLog.changes || {}).length === 0 ? (
+                <p className="text-tertiary">No field-level changes recorded.</p>
+              ) : (
+                <table className="table-simple">
+                  <thead>
+                    <tr>
+                      <th>Field</th>
+                      <th>Before</th>
+                      <th>After</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(viewingLog.changes).map(([field, value]) => (
+                      <tr key={field}>
+                        <td className="cell-mono">{field}</td>
+                        <td className="text-tertiary">{Array.isArray(value) ? String(value[0]) : "—"}</td>
+                        <td>{Array.isArray(value) ? String(value[1]) : String(value)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div className="modal-panel__footer">
+              <button type="button" className="btn btn-outline" onClick={() => setViewingLog(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
