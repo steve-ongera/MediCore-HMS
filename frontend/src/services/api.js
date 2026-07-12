@@ -140,6 +140,7 @@ export const getPatientSummary = (id) => unwrap(client.get(`/patients/${id}/summ
 export const createAllergy = (payload) => unwrap(client.post("/allergies/", payload));
 export const deleteAllergy = (id) => unwrap(client.delete(`/allergies/${id}/`));
 export const createMedicalHistoryNote = (payload) => unwrap(client.post("/medical-history/", payload));
+export const deleteMedicalHistoryNote = (id) => unwrap(client.delete(`/medical-history/${id}/`));
 
 // ===========================================================================
 // VISITS
@@ -199,6 +200,10 @@ export const searchMedicines = (query) => unwrap(client.get(`/medicines/autocomp
 // LABORATORY
 // ===========================================================================
 export const getLabTestCatalog = (params) => unwrap(client.get(`/lab-tests-catalog/${qs(params)}`));
+export const createLabTest = (payload) => unwrap(client.post("/lab-tests-catalog/", payload));
+export const updateLabTest = (id, payload) => unwrap(client.patch(`/lab-tests-catalog/${id}/`, payload));
+export const deleteLabTest = (id) => unwrap(client.delete(`/lab-tests-catalog/${id}/`));
+
 export const getLabOrders = (params) => unwrap(client.get(`/lab-orders/${qs(params)}`));
 export const getPendingLabOrders = () => unwrap(client.get("/lab-orders/pending/"));
 export const createLabOrder = (payload) => unwrap(client.post("/lab-orders/", payload));
@@ -212,6 +217,10 @@ export const uploadLabResults = (payload) => {
 // RADIOLOGY
 // ===========================================================================
 export const getRadiologyTestCatalog = (params) => unwrap(client.get(`/radiology-tests-catalog/${qs(params)}`));
+export const createRadiologyTest = (payload) => unwrap(client.post("/radiology-tests-catalog/", payload));
+export const updateRadiologyTest = (id, payload) => unwrap(client.patch(`/radiology-tests-catalog/${id}/`, payload));
+export const deleteRadiologyTest = (id) => unwrap(client.delete(`/radiology-tests-catalog/${id}/`));
+
 export const getRadiologyOrders = (params) => unwrap(client.get(`/radiology-orders/${qs(params)}`));
 export const getPendingRadiologyOrders = () => unwrap(client.get("/radiology-orders/pending/"));
 export const createRadiologyOrder = (payload) => unwrap(client.post("/radiology-orders/", payload));
@@ -230,6 +239,8 @@ export const getLowStockMedicines = () => unwrap(client.get("/medicines/low-stoc
 
 export const getSuppliers = (params) => unwrap(client.get(`/suppliers/${qs(params)}`));
 export const createSupplier = (payload) => unwrap(client.post("/suppliers/", payload));
+export const updateSupplier = (id, payload) => unwrap(client.patch(`/suppliers/${id}/`, payload));
+export const deleteSupplier = (id) => unwrap(client.delete(`/suppliers/${id}/`));
 
 export const getMedicineBatches = (params) => unwrap(client.get(`/medicine-batches/${qs(params)}`));
 export const createMedicineBatch = (payload) => unwrap(client.post("/medicine-batches/", payload));
