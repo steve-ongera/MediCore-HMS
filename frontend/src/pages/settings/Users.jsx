@@ -1,7 +1,12 @@
-// src/pages/settings/Users.jsx
 import { useEffect, useState } from "react";
-
+import { toast } from "react-toastify";
 import { getUsers, createUser, updateUser, deleteUser, getDepartments } from "../../services/api";
+import DataTable from "../../components/DataTable";
+import SearchBar from "../../components/SearchBar";
+import Pagination from "../../components/Pagination";
+import StatusBadge from "../../components/StatusBadge";
+import ConfirmDialog from "../../components/ConfirmDialog";
+import { formatDate } from "../../utils/formatters";
 
 const ROLE_OPTIONS = [
   { value: "SUPER_ADMIN", label: "Super Admin" },
@@ -15,6 +20,8 @@ const ROLE_OPTIONS = [
   { value: "ACCOUNTANT", label: "Accountant" },
 ];
 
+const roleLabel = (value) => ROLE_OPTIONS.find((r) => r.value === value)?.label || value;
+
 const EMPTY_FORM = {
   username: "",
   email: "",
@@ -26,15 +33,14 @@ const EMPTY_FORM = {
   password: "",
 };
 
-// DRF paginated responses come back as { count, next, previous, results }.
-// This project has hit that bug repeatedly, so normalize defensively here.
 const toArray = (data) => (Array.isArray(data) ? data : data?.results ?? []);
 
 export default function Users() {
   const [users, setUsers] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
 
@@ -44,45 +50,43 @@ export default function Users() {
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const [pendingAction, setPendingAction] = useState(null); // { type: "delete"|"toggle", user }
+
+  const pageSize = 20;
+
   useEffect(() => {
-    loadDepartments();
+    getDepartments().then((data) => setDepartments(toArray(data))).catch(() => {});
   }, []);
 
   useEffect(() => {
     loadUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, roleFilter]);
+  }, [page, search, roleFilter]);
 
-  async function loadUsers() {
+  const loadUsers = async () => {
     setLoading(true);
-    setError("");
     try {
-      const data = await getUsers({ search: search || undefined, role: roleFilter || undefined });
-      setUsers(toArray(data));
+      const params = { page, page_size: pageSize };
+      if (search) params.search = search;
+      if (roleFilter) params.role = roleFilter;
+      const data = await getUsers(params);
+      setUsers(data.results || toArray(data));
+      setTotal(data.count ?? toArray(data).length);
     } catch (err) {
-      setError(err.message);
+      toast.error(err.message || "Failed to load staff");
     } finally {
       setLoading(false);
     }
-  }
+  };
 
-  async function loadDepartments() {
-    try {
-      const data = await getDepartments();
-      setDepartments(toArray(data));
-    } catch {
-      // Non-fatal — the department select just stays empty.
-    }
-  }
-
-  function openCreateForm() {
+  const openCreateForm = () => {
     setEditingId(null);
     setForm(EMPTY_FORM);
     setFormError("");
     setShowForm(true);
-  }
+  };
 
-  function openEditForm(user) {
+  const openEditForm = (user) => {
     setEditingId(user.id);
     setForm({
       username: user.username,
@@ -96,254 +100,327 @@ export default function Users() {
     });
     setFormError("");
     setShowForm(true);
-  }
+  };
 
-  function closeForm() {
+  const closeForm = () => {
     setShowForm(false);
     setEditingId(null);
     setFormError("");
-  }
+  };
 
-  async function handleSubmit(e) {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
     setFormError("");
     try {
       if (editingId) {
-        const { password, ...payload } = form; // password isn't editable inline
+        const { password, ...payload } = form;
         await updateUser(editingId, payload);
+        toast.success("Staff member updated");
       } else {
         await createUser(form);
+        toast.success("Staff member added");
       }
       closeForm();
       loadUsers();
     } catch (err) {
-      setFormError(err.message);
+      setFormError(err.message || "Failed to save staff member");
     } finally {
       setSaving(false);
     }
-  }
+  };
 
-  async function handleToggleActive(user) {
+  const requestToggleActive = (user) => setPendingAction({ type: "toggle", user });
+  const requestDelete = (user) => setPendingAction({ type: "delete", user });
+
+  const confirmPendingAction = async () => {
+    if (!pendingAction) return;
+    const { type, user } = pendingAction;
     try {
-      await updateUser(user.id, { is_active_staff: !user.is_active_staff });
+      if (type === "toggle") {
+        await updateUser(user.id, { is_active_staff: !user.is_active_staff });
+        toast.success(user.is_active_staff ? "Staff member deactivated" : "Staff member reactivated");
+      } else {
+        await deleteUser(user.id);
+        toast.success("Staff member deleted");
+      }
       loadUsers();
     } catch (err) {
-      setError(err.message);
+      toast.error(err.message || "Action failed");
+    } finally {
+      setPendingAction(null);
     }
-  }
+  };
 
-  async function handleDelete(user) {
-    if (!window.confirm(`Remove ${user.full_name || user.username}? This cannot be undone.`)) return;
-    try {
-      await deleteUser(user.id);
-      loadUsers();
-    } catch (err) {
-      setError(err.message);
-    }
-  }
+  const columns = [
+    {
+      key: "full_name",
+      label: "Name",
+      render: (row) => (
+        <div className="table-row-avatar">
+          <span className="avatar avatar-sm">
+            {(row.full_name || row.username)?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) || "?"}
+          </span>
+          <div>
+            <div className="cell-primary">{row.full_name || `${row.first_name} ${row.last_name}`.trim() || row.username}</div>
+            <div className="text-2xs text-tertiary">{row.email || "—"}</div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "username",
+      label: "Username",
+      render: (row) => <span className="cell-mono">{row.username}</span>,
+    },
+    {
+      key: "role",
+      label: "Role",
+      render: (row) => <StatusBadge status={roleLabel(row.role)} variant="neutral" />,
+    },
+    {
+      key: "department",
+      label: "Department",
+      render: (row) => departments.find((d) => d.id === row.department)?.name || "—",
+    },
+    {
+      key: "phone",
+      label: "Phone",
+      render: (row) => row.phone || "—",
+    },
+    {
+      key: "date_joined",
+      label: "Joined",
+      render: (row) => (row.date_joined ? formatDate(row.date_joined) : "—"),
+    },
+    {
+      key: "status",
+      label: "Status",
+      render: (row) => (
+        <button
+          className="btn-icon-only-labeled"
+          onClick={() => requestToggleActive(row)}
+          title={row.is_active_staff ? "Deactivate" : "Reactivate"}
+        >
+          <StatusBadge
+            status={row.is_active_staff ? "Active" : "Deactivated"}
+            variant={row.is_active_staff ? "success" : "secondary"}
+          />
+        </button>
+      ),
+    },
+    {
+      key: "actions",
+      label: "",
+      render: (row) => (
+        <div className="flex gap-1 justify-end">
+          <button className="btn-icon-only" onClick={() => openEditForm(row)} title="Edit staff member">
+            <i className="bi bi-pencil"></i>
+          </button>
+          <button
+            className="btn-icon-only"
+            style={{ color: "var(--danger-strong)" }}
+            onClick={() => requestDelete(row)}
+            title="Delete staff member"
+          >
+            <i className="bi bi-trash"></i>
+          </button>
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <div className="page">
-      <div className="page__header d-flex justify-content-between align-items-center mb-3">
+    <>
+      <div className="page-header">
         <div>
-          <h4 className="mb-0">Staff</h4>
-          <small className="text-muted">Manage staff accounts, roles, and access</small>
+          <div className="page-eyebrow">Settings</div>
+          <h1 className="page-title">Staff</h1>
+          <p className="page-subtitle">Manage staff accounts, roles, and access</p>
         </div>
-        <button className="btn btn-primary" onClick={openCreateForm}>
-          <i className="bi bi-person-plus me-1" /> Add Staff
-        </button>
-      </div>
-
-      <div className="row g-2 mb-3">
-        <div className="col-md-6">
-          <input
-            className="form-control"
-            placeholder="Search by name, username, email, phone..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <div className="col-md-4">
-          <select className="form-select" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
-            <option value="">All roles</option>
-            {ROLE_OPTIONS.map((r) => (
-              <option key={r.value} value={r.value}>{r.label}</option>
-            ))}
-          </select>
+        <div className="page-header__actions">
+          <button className="btn btn-primary" onClick={openCreateForm}>
+            <i className="bi bi-person-plus me-2"></i>
+            Add Staff
+          </button>
         </div>
       </div>
-
-      {error && <div className="alert alert-danger">{error}</div>}
 
       <div className="card">
-        <div className="table-responsive">
-          <table className="table table-hover align-middle mb-0">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Username</th>
-                <th>Role</th>
-                <th>Department</th>
-                <th>Phone</th>
-                <th>Status</th>
-                <th className="text-end">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={7} className="text-center text-muted py-4">Loading...</td></tr>
-              ) : users.length === 0 ? (
-                <tr><td colSpan={7} className="text-center text-muted py-4">No staff found.</td></tr>
-              ) : (
-                users.map((user) => (
-                  <tr key={user.id}>
-                    <td>{user.full_name || `${user.first_name} ${user.last_name}`.trim() || "—"}</td>
-                    <td>{user.username}</td>
-                    <td>
-                      <span className="badge text-bg-light">
-                        {ROLE_OPTIONS.find((r) => r.value === user.role)?.label || user.role}
-                      </span>
-                    </td>
-                    <td>{departments.find((d) => d.id === user.department)?.name || "—"}</td>
-                    <td>{user.phone || "—"}</td>
-                    <td>
-                      <button
-                        className={`btn btn-sm ${user.is_active_staff ? "btn-outline-success" : "btn-outline-secondary"}`}
-                        onClick={() => handleToggleActive(user)}
-                      >
-                        {user.is_active_staff ? "Active" : "Deactivated"}
-                      </button>
-                    </td>
-                    <td className="text-end">
-                      <button className="btn btn-sm btn-outline-primary me-2" onClick={() => openEditForm(user)}>
-                        <i className="bi bi-pencil" />
-                      </button>
-                      <button className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(user)}>
-                        <i className="bi bi-trash" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="card-header">
+          <div className="flex items-center gap-3 flex-wrap">
+            <SearchBar
+              placeholder="Search by name, username, email, or phone..."
+              onSearch={(val) => {
+                setSearch(val);
+                setPage(1);
+              }}
+              delay={400}
+            />
+            <select
+              className="form-select form-select-sm"
+              style={{ maxWidth: 220 }}
+              value={roleFilter}
+              onChange={(e) => {
+                setRoleFilter(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">All roles</option>
+              {ROLE_OPTIONS.map((r) => (
+                <option key={r.value} value={r.value}>{r.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <span className="text-tertiary text-sm">
+              {total} staff member{total !== 1 ? "s" : ""}
+            </span>
+          </div>
+        </div>
+
+        <div className="card-body p-0">
+          <DataTable
+            columns={columns}
+            data={users}
+            loading={loading}
+            emptyMessage="No staff found. Add a staff member to get started."
+          />
+        </div>
+
+        <div className="card-footer">
+          <Pagination page={page} count={total} pageSize={pageSize} onPageChange={setPage} />
         </div>
       </div>
 
       {showForm && (
-        <div className="modal d-block" tabIndex={-1} style={{ background: "rgba(0,0,0,0.5)" }}>
-          <div className="modal-dialog">
-            <form className="modal-content" onSubmit={handleSubmit}>
-              <div className="modal-header">
-                <h5 className="modal-title">{editingId ? "Edit Staff" : "Add Staff"}</h5>
-                <button type="button" className="btn-close" onClick={closeForm} />
-              </div>
-              <div className="modal-body">
-                {formError && <div className="alert alert-danger">{formError}</div>}
+        <div className="modal-overlay">
+          <form className="modal-panel" onSubmit={handleSubmit}>
+            <div className="modal-panel__header">
+              <h2 className="modal-panel__title">{editingId ? "Edit Staff Member" : "Add Staff Member"}</h2>
+              <button type="button" className="btn-icon-only" onClick={closeForm}>
+                <i className="bi bi-x-lg"></i>
+              </button>
+            </div>
 
-                <div className="row g-2">
-                  <div className="col-6">
-                    <label className="form-label">First name</label>
-                    <input
-                      className="form-control"
-                      value={form.first_name}
-                      onChange={(e) => setForm({ ...form, first_name: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="col-6">
-                    <label className="form-label">Last name</label>
-                    <input
-                      className="form-control"
-                      value={form.last_name}
-                      onChange={(e) => setForm({ ...form, last_name: e.target.value })}
-                      required
-                    />
-                  </div>
-                </div>
+            <div className="modal-panel__body">
+              {formError && <div className="alert alert-danger">{formError}</div>}
 
-                <div className="mt-2">
-                  <label className="form-label">Username</label>
+              <div className="form-grid form-grid-2">
+                <div className="form-field">
+                  <label className="form-label">First name</label>
                   <input
                     className="form-control"
-                    value={form.username}
-                    onChange={(e) => setForm({ ...form, username: e.target.value })}
-                    disabled={!!editingId}
+                    value={form.first_name}
+                    onChange={(e) => setForm({ ...form, first_name: e.target.value })}
                     required
                   />
                 </div>
-
-                <div className="mt-2">
-                  <label className="form-label">Email</label>
-                  <input
-                    type="email"
-                    className="form-control"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  />
-                </div>
-
-                <div className="row g-2 mt-2">
-                  <div className="col-6">
-                    <label className="form-label">Role</label>
-                    <select
-                      className="form-select"
-                      value={form.role}
-                      onChange={(e) => setForm({ ...form, role: e.target.value })}
-                    >
-                      {ROLE_OPTIONS.map((r) => (
-                        <option key={r.value} value={r.value}>{r.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="col-6">
-                    <label className="form-label">Department</label>
-                    <select
-                      className="form-select"
-                      value={form.department}
-                      onChange={(e) => setForm({ ...form, department: e.target.value })}
-                    >
-                      <option value="">None</option>
-                      {departments.map((d) => (
-                        <option key={d.id} value={d.id}>{d.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="mt-2">
-                  <label className="form-label">Phone</label>
+                <div className="form-field">
+                  <label className="form-label">Last name</label>
                   <input
                     className="form-control"
-                    value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    value={form.last_name}
+                    onChange={(e) => setForm({ ...form, last_name: e.target.value })}
+                    required
                   />
                 </div>
+              </div>
 
-                {!editingId && (
-                  <div className="mt-2">
-                    <label className="form-label">Password</label>
-                    <input
-                      type="password"
-                      className="form-control"
-                      value={form.password}
-                      onChange={(e) => setForm({ ...form, password: e.target.value })}
-                      required
-                    />
-                  </div>
-                )}
+              <div className="form-field">
+                <label className="form-label">Username</label>
+                <input
+                  className="form-control"
+                  value={form.username}
+                  onChange={(e) => setForm({ ...form, username: e.target.value })}
+                  disabled={!!editingId}
+                  required
+                />
               </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-outline-secondary" onClick={closeForm}>Cancel</button>
-                <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? "Saving..." : "Save"}
-                </button>
+
+              <div className="form-field">
+                <label className="form-label">Email</label>
+                <input
+                  type="email"
+                  className="form-control"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                />
               </div>
-            </form>
-          </div>
+
+              <div className="form-grid form-grid-2">
+                <div className="form-field">
+                  <label className="form-label">Role</label>
+                  <select
+                    className="form-select"
+                    value={form.role}
+                    onChange={(e) => setForm({ ...form, role: e.target.value })}
+                  >
+                    {ROLE_OPTIONS.map((r) => (
+                      <option key={r.value} value={r.value}>{r.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-field">
+                  <label className="form-label">Department</label>
+                  <select
+                    className="form-select"
+                    value={form.department}
+                    onChange={(e) => setForm({ ...form, department: e.target.value })}
+                  >
+                    <option value="">None</option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-field">
+                <label className="form-label">Phone</label>
+                <input
+                  className="form-control"
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                />
+              </div>
+
+              {!editingId && (
+                <div className="form-field">
+                  <label className="form-label">Password</label>
+                  <input
+                    type="password"
+                    className="form-control"
+                    value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    required
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="modal-panel__footer">
+              <button type="button" className="btn btn-outline" onClick={closeForm}>Cancel</button>
+              <button type="submit" className="btn btn-primary" disabled={saving}>
+                {saving ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </form>
         </div>
       )}
-    </div>
+
+      <ConfirmDialog
+        show={!!pendingAction}
+        onClose={() => setPendingAction(null)}
+        onConfirm={confirmPendingAction}
+        title={pendingAction?.type === "delete" ? "Delete Staff Member" : "Change Staff Status"}
+        message={
+          pendingAction?.type === "delete"
+            ? "Are you sure you want to delete this staff member? This action cannot be undone."
+            : `Are you sure you want to ${pendingAction?.user?.is_active_staff ? "deactivate" : "reactivate"} this staff member?`
+        }
+        variant={pendingAction?.type === "delete" ? "danger" : "warning"}
+      />
+    </>
   );
 }
