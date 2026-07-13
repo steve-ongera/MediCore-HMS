@@ -49,7 +49,6 @@ export default function RegisterPatient() {
         setDuplicates([]);
       }
     } catch (err) {
-      // Silently fail - duplicate check is optional
       console.error("Duplicate check failed:", err);
     } finally {
       setChecking(false);
@@ -70,7 +69,6 @@ export default function RegisterPatient() {
     e.preventDefault();
     if (!validate()) return;
 
-    // Check if user wants to proceed with potential duplicate
     if (duplicates.length > 0) {
       const proceed = window.confirm(
         `${duplicates.length} potential duplicate(s) found. Do you still want to register this patient?`
@@ -84,9 +82,9 @@ export default function RegisterPatient() {
         ...form,
         created_by: user?.id,
       };
-      const patient = await createPatient(payload);
+      await createPatient(payload);
       toast.success("Patient registered successfully!");
-      navigate(`/patients`);
+      navigate("/patients");
     } catch (err) {
       toast.error(err.message || "Failed to register patient");
     } finally {
@@ -119,255 +117,241 @@ export default function RegisterPatient() {
       <div className="card">
         <div className="card-body">
           <form onSubmit={handleSubmit}>
-            <div className="row">
-              {/* Personal Information */}
-              <div className="col-12">
-                <h6 className="mb-3">Personal Information</h6>
-                <div className="row">
-                  <div className="col-md-6">
-                    <div className="field">
-                      <label className="field-label" htmlFor="full_name">
-                        Full Name <span className="required">*</span>
-                      </label>
-                      <input
-                        id="full_name"
-                        name="full_name"
-                        type="text"
-                        className={`input ${errors.full_name ? "has-error" : ""}`}
-                        placeholder="Enter full name"
-                        value={form.full_name}
-                        onChange={handleChange}
-                        onBlur={checkDuplicates}
-                      />
-                      {errors.full_name && (
-                        <div className="field-error">{errors.full_name}</div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="col-md-6">
-                    <div className="field">
-                      <label className="field-label" htmlFor="gender">
-                        Gender <span className="required">*</span>
-                      </label>
-                      <select
-                        id="gender"
-                        name="gender"
-                        className={`select ${errors.gender ? "has-error" : ""}`}
-                        value={form.gender}
-                        onChange={handleChange}
-                      >
-                        <option value="">Select gender</option>
-                        <option value="MALE">Male</option>
-                        <option value="FEMALE">Female</option>
-                        <option value="OTHER">Other</option>
-                      </select>
-                      {errors.gender && (
-                        <div className="field-error">{errors.gender}</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="row">
-                  <div className="col-md-4">
-                    <div className="field">
-                      <label className="field-label" htmlFor="dob">
-                        Date of Birth <span className="required">*</span>
-                      </label>
-                      <input
-                        id="dob"
-                        name="dob"
-                        type="date"
-                        className={`input ${errors.dob ? "has-error" : ""}`}
-                        value={form.dob}
-                        onChange={handleChange}
-                      />
-                      {errors.dob && (
-                        <div className="field-error">{errors.dob}</div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="col-md-4">
-                    <div className="field">
-                      <label className="field-label" htmlFor="phone">
-                        Phone <span className="required">*</span>
-                      </label>
-                      <input
-                        id="phone"
-                        name="phone"
-                        type="tel"
-                        className={`input ${errors.phone ? "has-error" : ""}`}
-                        placeholder="Enter phone number"
-                        value={form.phone}
-                        onChange={handleChange}
-                        onBlur={checkDuplicates}
-                      />
-                      {errors.phone && (
-                        <div className="field-error">{errors.phone}</div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="col-md-4">
-                    <div className="field">
-                      <label className="field-label" htmlFor="national_id">
-                        National ID
-                      </label>
-                      <input
-                        id="national_id"
-                        name="national_id"
-                        type="text"
-                        className="input"
-                        placeholder="Enter national ID"
-                        value={form.national_id}
-                        onChange={handleChange}
-                        onBlur={checkDuplicates}
-                      />
-                    </div>
-                  </div>
-                </div>
-
+            {/* Personal Information */}
+            <div className="page-section">
+              <div className="page-section__header">
+                <h5 className="text-sm font-semibold">Personal Information</h5>
+              </div>
+              <div className="field-row">
                 <div className="field">
-                  <label className="field-label" htmlFor="address">
-                    Address
+                  <label className="field-label" htmlFor="full_name">
+                    Full Name <span className="required">*</span>
                   </label>
                   <input
-                    id="address"
-                    name="address"
+                    id="full_name"
+                    name="full_name"
+                    type="text"
+                    className={`input ${errors.full_name ? "has-error" : ""}`}
+                    placeholder="Enter full name"
+                    value={form.full_name}
+                    onChange={handleChange}
+                    onBlur={checkDuplicates}
+                  />
+                  {errors.full_name && (
+                    <div className="field-error">{errors.full_name}</div>
+                  )}
+                </div>
+                <div className="field">
+                  <label className="field-label" htmlFor="gender">
+                    Gender <span className="required">*</span>
+                  </label>
+                  <select
+                    id="gender"
+                    name="gender"
+                    className={`select ${errors.gender ? "has-error" : ""}`}
+                    value={form.gender}
+                    onChange={handleChange}
+                  >
+                    <option value="">Select gender</option>
+                    <option value="MALE">Male</option>
+                    <option value="FEMALE">Female</option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                  {errors.gender && (
+                    <div className="field-error">{errors.gender}</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="field-row">
+                <div className="field">
+                  <label className="field-label" htmlFor="dob">
+                    Date of Birth <span className="required">*</span>
+                  </label>
+                  <input
+                    id="dob"
+                    name="dob"
+                    type="date"
+                    className={`input ${errors.dob ? "has-error" : ""}`}
+                    value={form.dob}
+                    onChange={handleChange}
+                  />
+                  {errors.dob && (
+                    <div className="field-error">{errors.dob}</div>
+                  )}
+                </div>
+                <div className="field">
+                  <label className="field-label" htmlFor="phone">
+                    Phone <span className="required">*</span>
+                  </label>
+                  <input
+                    id="phone"
+                    name="phone"
+                    type="tel"
+                    className={`input ${errors.phone ? "has-error" : ""}`}
+                    placeholder="Enter phone number"
+                    value={form.phone}
+                    onChange={handleChange}
+                    onBlur={checkDuplicates}
+                  />
+                  {errors.phone && (
+                    <div className="field-error">{errors.phone}</div>
+                  )}
+                </div>
+                <div className="field">
+                  <label className="field-label" htmlFor="national_id">
+                    National ID
+                  </label>
+                  <input
+                    id="national_id"
+                    name="national_id"
                     type="text"
                     className="input"
-                    placeholder="Enter address"
-                    value={form.address}
+                    placeholder="Enter national ID"
+                    value={form.national_id}
                     onChange={handleChange}
+                    onBlur={checkDuplicates}
                   />
                 </div>
               </div>
 
-              {/* Duplicate Check Warning */}
-              {duplicates.length > 0 && (
-                <div className="col-12 mt-3">
-                  <div className="alert alert-warning">
-                    <h6 className="mb-2">
-                      <i className="bi bi-exclamation-triangle me-2"></i>
-                      Potential Duplicate Patients Found
-                    </h6>
-                    <ul className="mb-0">
-                      {duplicates.map((p) => (
-                        <li key={p.id}>
-                          <strong>{p.full_name}</strong> — {p.hospital_number} ({p.phone || p.national_id})
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              )}
+              <div className="field">
+                <label className="field-label" htmlFor="address">
+                  Address
+                </label>
+                <input
+                  id="address"
+                  name="address"
+                  type="text"
+                  className="input"
+                  placeholder="Enter address"
+                  value={form.address}
+                  onChange={handleChange}
+                />
+              </div>
+            </div>
 
-              {/* Guardian Information (for minors) */}
-              <div className="col-12 mt-4">
-                <h6 className="mb-3">Guardian Information (For Minors)</h6>
-                <div className="row">
-                  <div className="col-md-4">
-                    <div className="field">
-                      <label className="field-label" htmlFor="guardian_name">
-                        Guardian Name
-                      </label>
-                      <input
-                        id="guardian_name"
-                        name="guardian_name"
-                        type="text"
-                        className="input"
-                        placeholder="Enter guardian name"
-                        value={form.guardian_name}
-                        onChange={handleChange}
-                      />
-                    </div>
-                  </div>
-                  <div className="col-md-4">
-                    <div className="field">
-                      <label className="field-label" htmlFor="guardian_phone">
-                        Guardian Phone
-                      </label>
-                      <input
-                        id="guardian_phone"
-                        name="guardian_phone"
-                        type="tel"
-                        className="input"
-                        placeholder="Enter guardian phone"
-                        value={form.guardian_phone}
-                        onChange={handleChange}
-                      />
-                    </div>
-                  </div>
-                  <div className="col-md-4">
-                    <div className="field">
-                      <label className="field-label" htmlFor="guardian_relationship">
-                        Relationship
-                      </label>
-                      <input
-                        id="guardian_relationship"
-                        name="guardian_relationship"
-                        type="text"
-                        className="input"
-                        placeholder="e.g., Parent, Aunt"
-                        value={form.guardian_relationship}
-                        onChange={handleChange}
-                      />
-                    </div>
-                  </div>
+            {/* Duplicate Check Warning */}
+            {duplicates.length > 0 && (
+              <div className="alert alert-warning" style={{
+                padding: 'var(--space-4)',
+                background: 'var(--warning-soft)',
+                color: 'var(--warning-strong)',
+                borderRadius: 'var(--radius-md)',
+                marginBottom: 'var(--space-5)'
+              }}>
+                <h6 className="mb-2">
+                  <i className="bi bi-exclamation-triangle me-2"></i>
+                  Potential Duplicate Patients Found
+                </h6>
+                <ul className="mb-0" style={{ paddingLeft: 'var(--space-4)' }}>
+                  {duplicates.map((p) => (
+                    <li key={p.id}>
+                      <strong>{p.full_name}</strong> — {p.hospital_number} ({p.phone || p.national_id})
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Guardian Information */}
+            <div className="page-section">
+              <div className="page-section__header">
+                <h5 className="text-sm font-semibold">Guardian Information (For Minors)</h5>
+              </div>
+              <div className="field-row">
+                <div className="field">
+                  <label className="field-label" htmlFor="guardian_name">
+                    Guardian Name
+                  </label>
+                  <input
+                    id="guardian_name"
+                    name="guardian_name"
+                    type="text"
+                    className="input"
+                    placeholder="Enter guardian name"
+                    value={form.guardian_name}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div className="field">
+                  <label className="field-label" htmlFor="guardian_phone">
+                    Guardian Phone
+                  </label>
+                  <input
+                    id="guardian_phone"
+                    name="guardian_phone"
+                    type="tel"
+                    className="input"
+                    placeholder="Enter guardian phone"
+                    value={form.guardian_phone}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div className="field">
+                  <label className="field-label" htmlFor="guardian_relationship">
+                    Relationship
+                  </label>
+                  <input
+                    id="guardian_relationship"
+                    name="guardian_relationship"
+                    type="text"
+                    className="input"
+                    placeholder="e.g., Parent, Aunt"
+                    value={form.guardian_relationship}
+                    onChange={handleChange}
+                  />
                 </div>
               </div>
+            </div>
 
-              {/* Next of Kin */}
-              <div className="col-12 mt-4">
-                <h6 className="mb-3">Next of Kin</h6>
-                <div className="row">
-                  <div className="col-md-4">
-                    <div className="field">
-                      <label className="field-label" htmlFor="next_of_kin_name">
-                        Next of Kin Name
-                      </label>
-                      <input
-                        id="next_of_kin_name"
-                        name="next_of_kin_name"
-                        type="text"
-                        className="input"
-                        placeholder="Enter next of kin name"
-                        value={form.next_of_kin_name}
-                        onChange={handleChange}
-                      />
-                    </div>
-                  </div>
-                  <div className="col-md-4">
-                    <div className="field">
-                      <label className="field-label" htmlFor="next_of_kin_phone">
-                        Next of Kin Phone
-                      </label>
-                      <input
-                        id="next_of_kin_phone"
-                        name="next_of_kin_phone"
-                        type="tel"
-                        className="input"
-                        placeholder="Enter next of kin phone"
-                        value={form.next_of_kin_phone}
-                        onChange={handleChange}
-                      />
-                    </div>
-                  </div>
-                  <div className="col-md-4">
-                    <div className="field">
-                      <label className="field-label" htmlFor="next_of_kin_relationship">
-                        Relationship
-                      </label>
-                      <input
-                        id="next_of_kin_relationship"
-                        name="next_of_kin_relationship"
-                        type="text"
-                        className="input"
-                        placeholder="e.g., Spouse, Child"
-                        value={form.next_of_kin_relationship}
-                        onChange={handleChange}
-                      />
-                    </div>
-                  </div>
+            {/* Next of Kin */}
+            <div className="page-section" style={{ marginBottom: 0 }}>
+              <div className="page-section__header">
+                <h5 className="text-sm font-semibold">Next of Kin</h5>
+              </div>
+              <div className="field-row">
+                <div className="field">
+                  <label className="field-label" htmlFor="next_of_kin_name">
+                    Next of Kin Name
+                  </label>
+                  <input
+                    id="next_of_kin_name"
+                    name="next_of_kin_name"
+                    type="text"
+                    className="input"
+                    placeholder="Enter next of kin name"
+                    value={form.next_of_kin_name}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div className="field">
+                  <label className="field-label" htmlFor="next_of_kin_phone">
+                    Next of Kin Phone
+                  </label>
+                  <input
+                    id="next_of_kin_phone"
+                    name="next_of_kin_phone"
+                    type="tel"
+                    className="input"
+                    placeholder="Enter next of kin phone"
+                    value={form.next_of_kin_phone}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div className="field">
+                  <label className="field-label" htmlFor="next_of_kin_relationship">
+                    Relationship
+                  </label>
+                  <input
+                    id="next_of_kin_relationship"
+                    name="next_of_kin_relationship"
+                    type="text"
+                    className="input"
+                    placeholder="e.g., Spouse, Child"
+                    value={form.next_of_kin_relationship}
+                    onChange={handleChange}
+                  />
                 </div>
               </div>
             </div>
@@ -387,7 +371,12 @@ export default function RegisterPatient() {
               >
                 {loading ? (
                   <>
-                    <span className="spinner-border spinner-border-sm me-2" role="status" />
+                    <span className="spinner spinner-sm" style={{ 
+                      display: 'inline-block', 
+                      width: '16px', 
+                      height: '16px',
+                      marginRight: 'var(--space-2)' 
+                    }}></span>
                     Registering...
                   </>
                 ) : (
