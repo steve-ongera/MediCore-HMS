@@ -177,65 +177,106 @@ export default function Suppliers() {
       </div>
 
       {showForm && (
-        <div className="modal-overlay">
-          <form className="modal-panel" onSubmit={handleSubmit}>
-            <div className="modal-panel__header">
-              <h2 className="modal-panel__title">{editingId ? "Edit Supplier" : "Add Supplier"}</h2>
-              <button type="button" className="btn-icon-only" onClick={closeForm}>
-                <i className="bi bi-x-lg"></i>
-              </button>
-            </div>
-
-            <div className="modal-panel__body">
-              {formError && <div className="alert alert-danger">{formError}</div>}
-
-              <div className="form-field">
-                <label className="form-label">Name</label>
-                <input
-                  className="form-control"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  required
-                />
+        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) closeForm(); }}>
+          <div className="modal" role="dialog" aria-modal="true">
+            <form onSubmit={handleSubmit}>
+              <div className="modal-header">
+                <div>
+                  <h5 className="modal-title">{editingId ? "Edit Supplier" : "Add Supplier"}</h5>
+                  <p className="modal-desc">
+                    {editingId ? "Update supplier details" : "Add a new supplier"}
+                  </p>
+                </div>
+                <button type="button" className="modal-close" onClick={closeForm} aria-label="Close">
+                  <i className="bi bi-x-lg"></i>
+                </button>
               </div>
 
-              <div className="form-field">
-                <label className="form-label">Phone</label>
-                <input
-                  className="form-control"
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                />
+              <div className="modal-body">
+                {formError && (
+                  <div className="alert alert-danger" style={{ 
+                    padding: 'var(--space-3) var(--space-4)', 
+                    background: 'var(--danger-soft)', 
+                    color: 'var(--danger-strong)',
+                    borderRadius: 'var(--radius-md)',
+                    marginBottom: 'var(--space-4)',
+                    fontSize: 'var(--fs-sm)'
+                  }}>
+                    {formError}
+                  </div>
+                )}
+
+                <div className="field">
+                  <label className="field-label">
+                    Supplier Name <span className="required">*</span>
+                  </label>
+                  <input
+                    className="input"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="e.g., MedSupply Ltd"
+                    required
+                  />
+                </div>
+
+                <div className="field">
+                  <label className="field-label">Phone Number</label>
+                  <div className="input-group">
+                    <span className="input-addon">+254</span>
+                    <input
+                      className="input"
+                      value={form.phone}
+                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                      placeholder="712345678"
+                    />
+                  </div>
+                </div>
+
+                <div className="field">
+                  <label className="field-label">Email Address</label>
+                  <input
+                    type="email"
+                    className="input"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    placeholder="contact@medsupply.co.ke"
+                  />
+                </div>
+
+                <div className="field" style={{ marginBottom: 0 }}>
+                  <label className="field-label">Physical Address</label>
+                  <textarea
+                    className="textarea"
+                    rows={2}
+                    value={form.address}
+                    onChange={(e) => setForm({ ...form, address: e.target.value })}
+                    placeholder="Nairobi, Kenya"
+                  />
+                </div>
               </div>
 
-              <div className="form-field">
-                <label className="form-label">Email</label>
-                <input
-                  type="email"
-                  className="form-control"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                />
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={closeForm}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={saving}>
+                  {saving ? (
+                    <>
+                      <span className="spinner spinner-sm" style={{ 
+                        display: 'inline-block', 
+                        width: '16px', 
+                        height: '16px',
+                        marginRight: 'var(--space-2)' 
+                      }}></span>
+                      Saving...
+                    </>
+                  ) : (
+                    editingId ? 'Update Supplier' : 'Add Supplier'
+                  )}
+                </button>
               </div>
-
-              <div className="form-field">
-                <label className="form-label">Address</label>
-                <textarea
-                  className="form-control"
-                  rows={2}
-                  value={form.address}
-                  onChange={(e) => setForm({ ...form, address: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="modal-panel__footer">
-              <button type="button" className="btn btn-outline" onClick={closeForm}>Cancel</button>
-              <button type="submit" className="btn btn-primary" disabled={saving}>
-                {saving ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
       )}
 
