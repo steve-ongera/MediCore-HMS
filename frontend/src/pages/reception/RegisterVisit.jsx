@@ -80,7 +80,7 @@ export default function RegisterVisit() {
 
     setLoading(true);
     try {
-      const visit = await registerVisit(form);
+      await registerVisit(form);
       toast.success("Visit registered successfully!");
       navigate("/queue");
     } catch (err) {
@@ -126,7 +126,7 @@ export default function RegisterVisit() {
               <label className="field-label" htmlFor="patient_search">
                 Patient <span className="required">*</span>
               </label>
-              <div className="position-relative">
+              <div style={{ position: 'relative' }}>
                 <input
                   id="patient_search"
                   type="text"
@@ -147,23 +147,43 @@ export default function RegisterVisit() {
                 />
                 {showPatientSearch && patients.length > 0 && (
                   <div
-                    className="position-absolute w-100 mt-1 bg-white border rounded shadow-lg"
-                    style={{ zIndex: 1000, maxHeight: 300, overflowY: "auto" }}
+                    style={{
+                      position: 'absolute',
+                      width: '100%',
+                      marginTop: 'var(--space-1)',
+                      background: 'var(--surface)',
+                      border: '1px solid var(--border-default)',
+                      borderRadius: 'var(--radius-md)',
+                      boxShadow: 'var(--shadow-lg)',
+                      zIndex: 1000,
+                      maxHeight: 300,
+                      overflowY: 'auto'
+                    }}
                   >
                     {patients.map((p) => (
                       <button
                         key={p.id}
                         type="button"
-                        className="d-block w-100 text-start px-3 py-2 border-0 bg-transparent hover-bg-light"
+                        style={{
+                          display: 'block',
+                          width: '100%',
+                          textAlign: 'left',
+                          padding: 'var(--space-2) var(--space-3)',
+                          border: 'none',
+                          background: 'transparent',
+                          transition: 'background var(--duration-fast) var(--ease-standard)'
+                        }}
                         onMouseDown={() => handlePatientSelect(p)}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-hover)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                       >
                         <div>
                           <strong>{p.full_name}</strong>
-                          <span className="text-muted ms-2 text-xs">
+                          <span className="text-muted text-xs" style={{ marginLeft: 'var(--space-2)' }}>
                             {p.hospital_number}
                           </span>
                         </div>
-                        <div className="text-xs text-muted">
+                        <div className="text-xs text-tertiary">
                           {p.phone} {p.national_id ? `· ${p.national_id}` : ""}
                         </div>
                       </button>
@@ -175,11 +195,19 @@ export default function RegisterVisit() {
                 <div className="field-error">{errors.patient}</div>
               )}
               {selectedPatient && (
-                <div className="mt-2 p-2 bg-primary-soft rounded d-flex align-items-center gap-2">
-                  <i className="bi bi-check-circle text-success"></i>
+                <div style={{
+                  marginTop: 'var(--space-2)',
+                  padding: 'var(--space-2) var(--space-3)',
+                  background: 'var(--primary-soft)',
+                  borderRadius: 'var(--radius-md)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--space-2)'
+                }}>
+                  <i className="bi bi-check-circle" style={{ color: 'var(--success-strong)' }}></i>
                   <span>
                     <strong>{selectedPatient.full_name}</strong>
-                    <span className="text-muted ms-2 text-xs">
+                    <span className="text-muted text-xs" style={{ marginLeft: 'var(--space-2)' }}>
                       {selectedPatient.hospital_number} · {selectedPatient.age || "N/A"} years
                     </span>
                   </span>
@@ -187,48 +215,49 @@ export default function RegisterVisit() {
               )}
             </div>
 
-            {/* Department */}
-            <div className="field">
-              <label className="field-label" htmlFor="department">
-                Department <span className="required">*</span>
-              </label>
-              <select
-                id="department"
-                name="department"
-                className={`select ${errors.department ? "has-error" : ""}`}
-                value={form.department}
-                onChange={handleChange}
-              >
-                <option value="">Select department</option>
-                {departments.map((dept) => (
-                  <option key={dept.id} value={dept.id}>
-                    {dept.name} ({formatCurrency(dept.consultation_fee)})
-                  </option>
-                ))}
-              </select>
-              {errors.department && (
-                <div className="field-error">{errors.department}</div>
-              )}
-            </div>
+            {/* Department and Consultation Type */}
+            <div className="field-row">
+              <div className="field">
+                <label className="field-label" htmlFor="department">
+                  Department <span className="required">*</span>
+                </label>
+                <select
+                  id="department"
+                  name="department"
+                  className={`select ${errors.department ? "has-error" : ""}`}
+                  value={form.department}
+                  onChange={handleChange}
+                >
+                  <option value="">Select department</option>
+                  {departments.map((dept) => (
+                    <option key={dept.id} value={dept.id}>
+                      {dept.name} ({formatCurrency(dept.consultation_fee)})
+                    </option>
+                  ))}
+                </select>
+                {errors.department && (
+                  <div className="field-error">{errors.department}</div>
+                )}
+              </div>
 
-            {/* Consultation Type */}
-            <div className="field">
-              <label className="field-label" htmlFor="consultation_type">
-                Consultation Type
-              </label>
-              <select
-                id="consultation_type"
-                name="consultation_type"
-                className="select"
-                value={form.consultation_type}
-                onChange={handleChange}
-              >
-                <option value="GENERAL">General Consultation</option>
-                <option value="GYNECOLOGY">Gynecologist</option>
-                <option value="DENTAL">Dentist</option>
-                <option value="PEDIATRIC">Pediatrician</option>
-                <option value="OTHER">Other Specialist</option>
-              </select>
+              <div className="field">
+                <label className="field-label" htmlFor="consultation_type">
+                  Consultation Type
+                </label>
+                <select
+                  id="consultation_type"
+                  name="consultation_type"
+                  className="select"
+                  value={form.consultation_type}
+                  onChange={handleChange}
+                >
+                  <option value="GENERAL">General Consultation</option>
+                  <option value="GYNECOLOGY">Gynecologist</option>
+                  <option value="DENTAL">Dentist</option>
+                  <option value="PEDIATRIC">Pediatrician</option>
+                  <option value="OTHER">Other Specialist</option>
+                </select>
+              </div>
             </div>
 
             {/* Doctor */}
@@ -246,7 +275,7 @@ export default function RegisterVisit() {
                 <option value="">Assign later</option>
                 {/* Doctors will be loaded via API if needed */}
               </select>
-              <div className="field-hint">Leave empty to assign a doctor from the queue</div>
+              <span className="field-hint">Leave empty to assign a doctor from the queue</span>
             </div>
 
             <div className="form-actions">
@@ -264,7 +293,12 @@ export default function RegisterVisit() {
               >
                 {loading ? (
                   <>
-                    <span className="spinner-border spinner-border-sm me-2" role="status" />
+                    <span className="spinner spinner-sm" style={{ 
+                      display: 'inline-block', 
+                      width: '16px', 
+                      height: '16px',
+                      marginRight: 'var(--space-2)' 
+                    }}></span>
                     Registering...
                   </>
                 ) : (
