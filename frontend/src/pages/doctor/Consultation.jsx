@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import jsPDF from "jspdf";
 import {
   getConsultations,
   getVisit,
@@ -23,7 +24,7 @@ import {
 import LoadingSpinner from "../../components/LoadingSpinner";
 import Modal from "../../components/Modal";
 import StatusBadge from "../../components/StatusBadge";
-import { formatDate } from "../../utils/formatters";
+import { formatDate, formatDateTime } from "../../utils/formatters";
 
 const TABS = [
   { key: "notes", label: "Clinical Notes" },
@@ -390,6 +391,102 @@ export default function Consultation() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // Builds a simple PDF from a lab order's typed-in result text.
+  // The uploaded file itself (if any) is opened directly via its own URL —
+  // this PDF is only for the free-text portion the technologist entered.
+  const downloadLabResultPdf = (order) => {
+    const doc = new jsPDF();
+    const margin = 15;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let y = 20;
+
+    doc.setFontSize(16);
+    doc.text("Laboratory Result", margin, y);
+    y += 10;
+    doc.setDrawColor(200);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 8;
+
+    doc.setFontSize(11);
+    doc.text(`Patient: ${consultation?.patient_name || "—"}`, margin, y);
+    y += 7;
+    doc.text(`Test: ${order.test_name || "—"}`, margin, y);
+    y += 7;
+    doc.text(`Ordered: ${order.ordered_at ? formatDateTime(order.ordered_at) : "—"}`, margin, y);
+    y += 7;
+    if (order.result?.completed_at) {
+      doc.text(`Completed: ${formatDateTime(order.result.completed_at)}`, margin, y);
+      y += 7;
+    }
+    y += 5;
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 10;
+
+    doc.setFontSize(12);
+    doc.text("Result:", margin, y);
+    y += 8;
+
+    doc.setFontSize(11);
+    const lines = doc.splitTextToSize(
+      order.result?.result_text || "(no text entered)",
+      pageWidth - margin * 2
+    );
+    doc.text(lines, margin, y);
+
+    const fileName = `${order.test_name || "lab_result"}_${consultation?.patient_name || "patient"}.pdf`.replace(
+      /\s+/g,
+      "_"
+    );
+    doc.save(fileName);
+  };
+
+  // Same idea for radiology — uses radiologist_notes instead of result_text.
+  const downloadRadiologyResultPdf = (order) => {
+    const doc = new jsPDF();
+    const margin = 15;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let y = 20;
+
+    doc.setFontSize(16);
+    doc.text("Radiology Report", margin, y);
+    y += 10;
+    doc.setDrawColor(200);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 8;
+
+    doc.setFontSize(11);
+    doc.text(`Patient: ${consultation?.patient_name || "—"}`, margin, y);
+    y += 7;
+    doc.text(`Test: ${order.test_name || "—"}`, margin, y);
+    y += 7;
+    doc.text(`Ordered: ${order.ordered_at ? formatDateTime(order.ordered_at) : "—"}`, margin, y);
+    y += 7;
+    if (order.result?.completed_at) {
+      doc.text(`Completed: ${formatDateTime(order.result.completed_at)}`, margin, y);
+      y += 7;
+    }
+    y += 5;
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 10;
+
+    doc.setFontSize(12);
+    doc.text("Radiologist Notes:", margin, y);
+    y += 8;
+
+    doc.setFontSize(11);
+    const lines = doc.splitTextToSize(
+      order.result?.radiologist_notes || "(no notes entered)",
+      pageWidth - margin * 2
+    );
+    doc.text(lines, margin, y);
+
+    const fileName = `${order.test_name || "radiology_report"}_${consultation?.patient_name || "patient"}.pdf`.replace(
+      /\s+/g,
+      "_"
+    );
+    doc.save(fileName);
   };
 
   if (loading) return <LoadingSpinner />;
@@ -761,9 +858,39 @@ export default function Consultation() {
                       <div className="text-muted text-sm">No lab orders</div>
                     ) : (
                       consultation?.lab_orders?.map((order) => (
-                        <div key={order.id} className="d-flex justify-content-between align-items-center py-1">
-                          <span className="text-sm">{order.test_name}</span>
-                          <StatusBadge status={order.status} />
+                        <div key={order.id} className="d-flex justify-content-between align-items-center py-2 border-bottom">
+                          <div>
+                            <div className="text-sm font-semibold">{order.test_name}</div>
+                            <StatusBadge status={order.status} />
+                          </div>
+                          <div className="d-flex gap-1">
+                            {order.result?.result_file && (
+                              <a
+                                href={order.result.result_file}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn btn-outline btn-sm"
+                                title="View uploaded file"
+                              >
+                                <i className="bi bi-file-earmark-pdf"></i>
+                              </a>
+                            )}
+                            {order.result?.result_text && (
+                              <button
+                                type="button"
+                                className="btn btn-outline btn-sm"
+                                onClick={() => downloadLabResultPdf(order)}
+                                title="Download typed result as PDF"
+                              >
+                                <i className="bi bi-download"></i>
+                              </button>
+                            )}
+                            {order.result && !order.result.result_file && !order.result.result_text && (
+                              <span className="text-success text-sm">
+                                <i className="bi bi-check-circle"></i>
+                              </span>
+                            )}
+                          </div>
                         </div>
                       ))
                     )}
@@ -788,9 +915,53 @@ export default function Consultation() {
                       <div className="text-muted text-sm">No radiology orders</div>
                     ) : (
                       consultation?.radiology_orders?.map((order) => (
-                        <div key={order.id} className="d-flex justify-content-between align-items-center py-1">
-                          <span className="text-sm">{order.test_name}</span>
-                          <StatusBadge status={order.status} />
+                        <div key={order.id} className="d-flex justify-content-between align-items-center py-2 border-bottom">
+                          <div>
+                            <div className="text-sm font-semibold">{order.test_name}</div>
+                            <StatusBadge status={order.status} />
+                          </div>
+                          <div className="d-flex gap-1">
+                            {order.result?.image_file && (
+                              <a
+                                href={order.result.image_file}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn btn-outline btn-sm"
+                                title="View uploaded image"
+                              >
+                                <i className="bi bi-image"></i>
+                              </a>
+                            )}
+                            {order.result?.report_file && (
+                              <a
+                                href={order.result.report_file}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn btn-outline btn-sm"
+                                title="View uploaded report"
+                              >
+                                <i className="bi bi-file-earmark-pdf"></i>
+                              </a>
+                            )}
+                            {order.result?.radiologist_notes && (
+                              <button
+                                type="button"
+                                className="btn btn-outline btn-sm"
+                                onClick={() => downloadRadiologyResultPdf(order)}
+                                title="Download radiologist notes as PDF"
+                              >
+                                <i className="bi bi-download"></i>
+                              </button>
+                            )}
+                            {order.result &&
+                              !order.result.image_file &&
+                              !order.result.report_file &&
+                              !order.result.radiologist_notes && (
+                                <span className="text-success text-sm">
+                                  <i className="bi bi-check-circle"></i>
+                                </span>
+                              )}
+                          </div>
                         </div>
                       ))
                     )}
