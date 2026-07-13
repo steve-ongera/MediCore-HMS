@@ -1,3 +1,4 @@
+//src/components/Modal.jsx
 export default function Modal({ show, onClose, title, description, children, footer, size = "" }) {
   if (!show) return null;
 
