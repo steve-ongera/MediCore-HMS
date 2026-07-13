@@ -50,7 +50,7 @@ export default function Users() {
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const [pendingAction, setPendingAction] = useState(null); // { type: "delete"|"toggle", user }
+  const [pendingAction, setPendingAction] = useState(null);
 
   const pageSize = 20;
 
@@ -60,7 +60,6 @@ export default function Users() {
 
   useEffect(() => {
     loadUsers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, search, roleFilter]);
 
   const loadUsers = async () => {
@@ -258,8 +257,8 @@ export default function Users() {
               delay={400}
             />
             <select
-              className="form-select form-select-sm"
-              style={{ maxWidth: 220 }}
+              className="select"
+              style={{ maxWidth: 220, height: '38px' }}
               value={roleFilter}
               onChange={(e) => {
                 setRoleFilter(e.target.value);
@@ -294,118 +293,174 @@ export default function Users() {
       </div>
 
       {showForm && (
-        <div className="modal-overlay">
-          <form className="modal-panel" onSubmit={handleSubmit}>
-            <div className="modal-panel__header">
-              <h2 className="modal-panel__title">{editingId ? "Edit Staff Member" : "Add Staff Member"}</h2>
-              <button type="button" className="btn-icon-only" onClick={closeForm}>
-                <i className="bi bi-x-lg"></i>
-              </button>
-            </div>
+        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) closeForm(); }}>
+          <div className="modal modal-lg" role="dialog" aria-modal="true">
+            <form onSubmit={handleSubmit}>
+              <div className="modal-header">
+                <div>
+                  <h5 className="modal-title">{editingId ? "Edit Staff Member" : "Add Staff Member"}</h5>
+                  <p className="modal-desc">
+                    {editingId ? "Update staff member details" : "Create a new staff account"}
+                  </p>
+                </div>
+                <button type="button" className="modal-close" onClick={closeForm} aria-label="Close">
+                  <i className="bi bi-x-lg"></i>
+                </button>
+              </div>
 
-            <div className="modal-panel__body">
-              {formError && <div className="alert alert-danger">{formError}</div>}
+              <div className="modal-body">
+                {formError && (
+                  <div className="alert alert-danger" style={{ 
+                    padding: 'var(--space-3) var(--space-4)', 
+                    background: 'var(--danger-soft)', 
+                    color: 'var(--danger-strong)',
+                    borderRadius: 'var(--radius-md)',
+                    marginBottom: 'var(--space-4)',
+                    fontSize: 'var(--fs-sm)'
+                  }}>
+                    {formError}
+                  </div>
+                )}
 
-              <div className="form-grid form-grid-2">
-                <div className="form-field">
-                  <label className="form-label">First name</label>
+                <div className="field-row">
+                  <div className="field">
+                    <label className="field-label">
+                      First Name <span className="required">*</span>
+                    </label>
+                    <input
+                      className="input"
+                      value={form.first_name}
+                      onChange={(e) => setForm({ ...form, first_name: e.target.value })}
+                      placeholder="John"
+                      required
+                    />
+                  </div>
+                  <div className="field">
+                    <label className="field-label">
+                      Last Name <span className="required">*</span>
+                    </label>
+                    <input
+                      className="input"
+                      value={form.last_name}
+                      onChange={(e) => setForm({ ...form, last_name: e.target.value })}
+                      placeholder="Doe"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="field">
+                  <label className="field-label">
+                    Username <span className="required">*</span>
+                  </label>
                   <input
-                    className="form-control"
-                    value={form.first_name}
-                    onChange={(e) => setForm({ ...form, first_name: e.target.value })}
+                    className="input"
+                    value={form.username}
+                    onChange={(e) => setForm({ ...form, username: e.target.value })}
+                    placeholder="johndoe"
+                    disabled={!!editingId}
                     required
                   />
+                  {editingId && (
+                    <span className="field-hint">Username cannot be changed</span>
+                  )}
                 </div>
-                <div className="form-field">
-                  <label className="form-label">Last name</label>
+
+                <div className="field">
+                  <label className="field-label">Email Address</label>
                   <input
-                    className="form-control"
-                    value={form.last_name}
-                    onChange={(e) => setForm({ ...form, last_name: e.target.value })}
-                    required
+                    type="email"
+                    className="input"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    placeholder="john@hospital.com"
                   />
                 </div>
-              </div>
 
-              <div className="form-field">
-                <label className="form-label">Username</label>
-                <input
-                  className="form-control"
-                  value={form.username}
-                  onChange={(e) => setForm({ ...form, username: e.target.value })}
-                  disabled={!!editingId}
-                  required
-                />
-              </div>
-
-              <div className="form-field">
-                <label className="form-label">Email</label>
-                <input
-                  type="email"
-                  className="form-control"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                />
-              </div>
-
-              <div className="form-grid form-grid-2">
-                <div className="form-field">
-                  <label className="form-label">Role</label>
-                  <select
-                    className="form-select"
-                    value={form.role}
-                    onChange={(e) => setForm({ ...form, role: e.target.value })}
-                  >
-                    {ROLE_OPTIONS.map((r) => (
-                      <option key={r.value} value={r.value}>{r.label}</option>
-                    ))}
-                  </select>
+                <div className="field-row">
+                  <div className="field">
+                    <label className="field-label">
+                      Role <span className="required">*</span>
+                    </label>
+                    <select
+                      className="select"
+                      value={form.role}
+                      onChange={(e) => setForm({ ...form, role: e.target.value })}
+                      required
+                    >
+                      {ROLE_OPTIONS.map((r) => (
+                        <option key={r.value} value={r.value}>{r.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label className="field-label">Department</label>
+                    <select
+                      className="select"
+                      value={form.department}
+                      onChange={(e) => setForm({ ...form, department: e.target.value })}
+                    >
+                      <option value="">None</option>
+                      {departments.map((d) => (
+                        <option key={d.id} value={d.id}>{d.name}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-                <div className="form-field">
-                  <label className="form-label">Department</label>
-                  <select
-                    className="form-select"
-                    value={form.department}
-                    onChange={(e) => setForm({ ...form, department: e.target.value })}
-                  >
-                    <option value="">None</option>
-                    {departments.map((d) => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
-                    ))}
-                  </select>
+
+                <div className="field">
+                  <label className="field-label">Phone Number</label>
+                  <div className="input-group">
+                    <span className="input-addon">+254</span>
+                    <input
+                      className="input"
+                      value={form.phone}
+                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                      placeholder="712345678"
+                    />
+                  </div>
                 </div>
+
+                {!editingId && (
+                  <div className="field">
+                    <label className="field-label">
+                      Password <span className="required">*</span>
+                    </label>
+                    <input
+                      type="password"
+                      className="input"
+                      value={form.password}
+                      onChange={(e) => setForm({ ...form, password: e.target.value })}
+                      placeholder="Min 8 characters"
+                      required
+                    />
+                    <span className="field-hint">Must be at least 8 characters</span>
+                  </div>
+                )}
               </div>
 
-              <div className="form-field">
-                <label className="form-label">Phone</label>
-                <input
-                  className="form-control"
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                />
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={closeForm}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={saving}>
+                  {saving ? (
+                    <>
+                      <span className="spinner spinner-sm" style={{ 
+                        display: 'inline-block', 
+                        width: '16px', 
+                        height: '16px',
+                        marginRight: 'var(--space-2)' 
+                      }}></span>
+                      Saving...
+                    </>
+                  ) : (
+                    editingId ? 'Update Staff' : 'Add Staff'
+                  )}
+                </button>
               </div>
-
-              {!editingId && (
-                <div className="form-field">
-                  <label className="form-label">Password</label>
-                  <input
-                    type="password"
-                    className="form-control"
-                    value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    required
-                  />
-                </div>
-              )}
-            </div>
-
-            <div className="modal-panel__footer">
-              <button type="button" className="btn btn-outline" onClick={closeForm}>Cancel</button>
-              <button type="submit" className="btn btn-primary" disabled={saving}>
-                {saving ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
       )}
 
