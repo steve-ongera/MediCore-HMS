@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import { getMyQueue, saveVitals, getQueue } from "../../services/api";
+import { getMyQueue, saveVitals, getQueue, getPatients } from "../../services/api";
 import StatusBadge from "../../components/StatusBadge";
 import Modal from "../../components/Modal";
 import LoadingSpinner from "../../components/LoadingSpinner";
@@ -12,6 +12,10 @@ export default function NurseDashboard() {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [showVitalsModal, setShowVitalsModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [searching, setSearching] = useState(false);
 
   const [vitals, setVitals] = useState({
     weight_kg: "",
@@ -41,6 +45,47 @@ export default function NurseDashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearch = async (query) => {
+    setSearchTerm(query);
+    if (!query || query.length < 2) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+
+    setSearching(true);
+    try {
+      const data = await getPatients({ search: query, page: 1, page_size: 10 });
+      const patients = data.results || data || [];
+      if (patients.length > 0) {
+        setSearchResults(patients);
+        setShowSearchResults(true);
+      } else {
+        setSearchResults([]);
+        setShowSearchResults(false);
+      }
+    } catch (err) {
+      console.error("Search failed:", err);
+      setSearchResults([]);
+      setShowSearchResults(false);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleSelectPatient = (patient) => {
+    const existingInQueue = queue.find(q => q.patient === patient.id);
+    if (existingInQueue) {
+      toast.info("Patient is already in queue");
+      openVitalsModal(existingInQueue);
+    } else {
+      toast.info("Please register a visit first before recording vitals");
+    }
+    setSearchTerm("");
+    setSearchResults([]);
+    setShowSearchResults(false);
   };
 
   const handleVitalsChange = (e) => {
@@ -128,10 +173,138 @@ export default function NurseDashboard() {
       <div className="dashboard-grid">
         <div className="card">
           <div className="card-header">
-            <h5 className="card-title">Waiting for Triage</h5>
-            <span className="badge badge-primary">{queue.length}</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+                <h5 className="card-title" style={{ margin: 0 }}>Waiting for Triage</h5>
+                <span className="badge badge-primary">{queue.length}</span>
+              </div>
+            </div>
           </div>
-          <div className="card-body p-0">
+          
+          <div className="card-body" style={{ paddingTop: 'var(--space-4)' }}>
+            {/* Search Bar */}
+            <div style={{ marginBottom: 'var(--space-4)' }}>
+              <div style={{ position: 'relative' }}>
+                <div className="search-bar">
+                  <i className="bi bi-search search-bar__icon" aria-hidden="true"></i>
+                  <input
+                    type="text"
+                    className="search-bar__input"
+                    placeholder="Search patient by name, phone, or ID..."
+                    value={searchTerm}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    onFocus={() => {
+                      if (searchResults.length > 0) setShowSearchResults(true);
+                    }}
+                    onBlur={() => {
+                      setTimeout(() => setShowSearchResults(false), 200);
+                    }}
+                  />
+                  {searchTerm && (
+                    <button
+                      type="button"
+                      className="search-bar__clear"
+                      onClick={() => {
+                        setSearchTerm("");
+                        setSearchResults([]);
+                        setShowSearchResults(false);
+                      }}
+                    >
+                      <i className="bi bi-x"></i>
+                    </button>
+                  )}
+                </div>
+                {searching && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    marginTop: 'var(--space-1)',
+                    padding: 'var(--space-2)',
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border-default)',
+                    borderRadius: 'var(--radius-md)',
+                    boxShadow: 'var(--shadow-lg)',
+                    zIndex: 1000,
+                    textAlign: 'center'
+                  }}>
+                    <span className="spinner spinner-sm" style={{ display: 'inline-block', width: '16px', height: '16px' }}></span>
+                    <span className="text-sm text-muted" style={{ marginLeft: 'var(--space-2)' }}>Searching...</span>
+                  </div>
+                )}
+                {showSearchResults && searchResults.length > 0 && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      marginTop: 'var(--space-1)',
+                      background: 'var(--surface)',
+                      border: '1px solid var(--border-default)',
+                      borderRadius: 'var(--radius-md)',
+                      boxShadow: 'var(--shadow-lg)',
+                      zIndex: 1000,
+                      maxHeight: 300,
+                      overflowY: 'auto'
+                    }}
+                  >
+                    {searchResults.map((patient) => (
+                      <button
+                        key={patient.id}
+                        type="button"
+                        style={{
+                          display: 'block',
+                          width: '100%',
+                          textAlign: 'left',
+                          padding: 'var(--space-2) var(--space-3)',
+                          border: 'none',
+                          background: 'transparent',
+                          transition: 'background var(--duration-fast) var(--ease-standard)'
+                        }}
+                        onMouseDown={() => handleSelectPatient(patient)}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-hover)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <div>
+                          <strong>{patient.full_name}</strong>
+                          <span className="text-muted text-xs" style={{ marginLeft: 'var(--space-2)' }}>
+                            #{patient.hospital_number}
+                          </span>
+                        </div>
+                        <div className="text-xs text-tertiary">
+                          {patient.phone} {patient.national_id ? `· ${patient.national_id}` : ""}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {showSearchResults && searchResults.length === 0 && searchTerm.length >= 2 && !searching && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      marginTop: 'var(--space-1)',
+                      padding: 'var(--space-3)',
+                      background: 'var(--surface)',
+                      border: '1px solid var(--border-default)',
+                      borderRadius: 'var(--radius-md)',
+                      boxShadow: 'var(--shadow-lg)',
+                      zIndex: 1000,
+                      textAlign: 'center',
+                      color: 'var(--text-tertiary)'
+                    }}
+                  >
+                    No patients found
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Queue List */}
             {queue.length === 0 ? (
               <div className="empty-state">
                 <div className="empty-state__icon">
@@ -144,11 +317,17 @@ export default function NurseDashboard() {
                 {queue.map((entry) => (
                   <div
                     key={entry.id}
-                    className="flex items-center justify-between px-5 py-4"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: 'var(--space-4) var(--space-5)',
+                      borderBottom: '1px solid var(--border-subtle)'
+                    }}
                   >
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold">{entry.patient_name}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                        <span style={{ fontWeight: 'var(--fw-semibold)' }}>{entry.patient_name}</span>
                         <span className="text-tertiary text-xs">
                           #{entry.hospital_number}
                         </span>
@@ -181,7 +360,7 @@ export default function NurseDashboard() {
               <h5 className="card-title">Quick Actions</h5>
             </div>
             <div className="card-body">
-              <div className="flex flex-col gap-2">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
                 <button
                   type="button"
                   className="btn btn-primary btn-block"
@@ -209,7 +388,7 @@ export default function NurseDashboard() {
               <h5 className="card-title">Triage Guidelines</h5>
             </div>
             <div className="card-body text-sm">
-              <ul className="flex flex-col gap-2">
+              <ul style={{ paddingLeft: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
                 <li>Record all vital signs accurately</li>
                 <li>Check for allergies before medication</li>
                 <li>Flag urgent cases with priority</li>
@@ -230,7 +409,7 @@ export default function NurseDashboard() {
           setErrors({});
         }}
         title="Record Vitals"
-        size="modal-lg"
+        size="lg"
         footer={
           <>
             <button
@@ -263,7 +442,12 @@ export default function NurseDashboard() {
         }
       >
         {selectedPatient && (
-          <div className="mb-4 p-3 bg-primary-soft rounded-md">
+          <div style={{
+            marginBottom: 'var(--space-4)',
+            padding: 'var(--space-3)',
+            background: 'var(--primary-soft)',
+            borderRadius: 'var(--radius-md)'
+          }}>
             <strong>{selectedPatient.patient_name}</strong>
             <span className="text-tertiary ml-2 text-sm">
               #{selectedPatient.hospital_number}
@@ -376,7 +560,7 @@ export default function NurseDashboard() {
             Blood Pressure <span className="required">*</span>
           </label>
           <div className="field-row">
-            <div>
+            <div className="field">
               <input
                 name="bp_systolic"
                 type="number"
@@ -387,7 +571,7 @@ export default function NurseDashboard() {
               />
               {errors.bp_systolic && <div className="field-error">{errors.bp_systolic}</div>}
             </div>
-            <div>
+            <div className="field">
               <input
                 name="bp_diastolic"
                 type="number"

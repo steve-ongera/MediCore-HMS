@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
+import jsPDF from "jspdf";
 import {
   getLabOrders,
   getPendingLabOrders,
@@ -83,6 +84,57 @@ export default function Laboratory() {
     }
   };
 
+  // Builds a simple PDF on the fly from the typed-in result text
+  // (the uploaded file, if any, is viewed/downloaded directly via its own URL).
+  const downloadResultAsPdf = (row) => {
+    const doc = new jsPDF();
+    const margin = 15;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let y = 20;
+
+    doc.setFontSize(16);
+    doc.text("Laboratory Result", margin, y);
+    y += 10;
+
+    doc.setDrawColor(200);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 8;
+
+    doc.setFontSize(11);
+    doc.text(`Patient: ${row.patient_name || "—"}`, margin, y);
+    y += 7;
+    doc.text(`Test: ${row.test_name || "—"}`, margin, y);
+    y += 7;
+    doc.text(`Ordered: ${row.ordered_at ? formatDateTime(row.ordered_at) : "—"}`, margin, y);
+    y += 7;
+    if (row.result?.completed_at) {
+      doc.text(`Completed: ${formatDateTime(row.result.completed_at)}`, margin, y);
+      y += 7;
+    }
+    y += 5;
+
+    doc.setDrawColor(200);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 10;
+
+    doc.setFontSize(12);
+    doc.text("Result:", margin, y);
+    y += 8;
+
+    doc.setFontSize(11);
+    const lines = doc.splitTextToSize(
+      row.result?.result_text || "(no text entered)",
+      pageWidth - margin * 2
+    );
+    doc.text(lines, margin, y);
+
+    const fileName = `${row.test_name || "lab_result"}_${row.patient_name || "patient"}.pdf`.replace(
+      /\s+/g,
+      "_"
+    );
+    doc.save(fileName);
+  };
+
   const pendingColumns = [
     {
       key: "test_name",
@@ -157,15 +209,42 @@ export default function Laboratory() {
     {
       key: "result",
       label: "Result",
-      render: (row) =>
-        row.result ? (
-          <span className="flex items-center gap-1 text-success">
-            <i className="bi bi-check-circle"></i>
-            Completed
-          </span>
-        ) : (
-          <span className="text-tertiary">—</span>
-        ),
+      render: (row) => {
+        if (!row.result) {
+          return <span className="text-tertiary">—</span>;
+        }
+        return (
+          <div className="flex gap-1 items-center">
+            {row.result.result_file && (
+              <a
+                href={row.result.result_file}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-outline btn-sm"
+                title="View uploaded file"
+              >
+                <i className="bi bi-file-earmark-pdf"></i>
+              </a>
+            )}
+            {row.result.result_text && (
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={() => downloadResultAsPdf(row)}
+                title="Download typed result as PDF"
+              >
+                <i className="bi bi-download"></i>
+              </button>
+            )}
+            {!row.result.result_file && !row.result.result_text && (
+              <span className="flex items-center gap-1 text-success">
+                <i className="bi bi-check-circle"></i>
+                Completed
+              </span>
+            )}
+          </div>
+        );
+      },
     },
   ];
 

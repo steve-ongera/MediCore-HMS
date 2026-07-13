@@ -17,6 +17,8 @@ import {
   createPrescription,
   createLabOrder,
   createRadiologyOrder,
+  getLabTestCatalog,
+  getRadiologyTestCatalog,
 } from "../../services/api";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import Modal from "../../components/Modal";
@@ -73,6 +75,12 @@ export default function Consultation() {
     instructions: "",
   });
 
+  // Lab & Radiology catalogs — loaded from the DB so the `test` field we
+  // submit is a real ForeignKey UUID, not a hardcoded string like "MALARIA".
+  const [labTests, setLabTests] = useState([]);
+  const [radiologyTests, setRadiologyTests] = useState([]);
+  const [catalogsLoading, setCatalogsLoading] = useState(true);
+
   const [showLabModal, setShowLabModal] = useState(false);
   const [labForm, setLabForm] = useState({ test: "" });
 
@@ -90,6 +98,28 @@ export default function Consultation() {
     loadConsultation();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visitId]);
+
+  // Load the lab/radiology test catalogs once — both are lookup tables that
+  // rarely change, so a single fetch on mount is enough.
+  useEffect(() => {
+    const loadCatalogs = async () => {
+      setCatalogsLoading(true);
+      try {
+        const [labResp, radResp] = await Promise.all([
+          getLabTestCatalog(),
+          getRadiologyTestCatalog(),
+        ]);
+        // Handle both paginated ({results: [...]}) and plain-array responses.
+        setLabTests(labResp?.results || labResp || []);
+        setRadiologyTests(radResp?.results || radResp || []);
+      } catch (err) {
+        toast.error(err.message || "Failed to load test catalogs");
+      } finally {
+        setCatalogsLoading(false);
+      }
+    };
+    loadCatalogs();
+  }, []);
 
   // Warn before an actual browser reload/close if there are unsaved clinical notes.
   useEffect(() => {
@@ -329,6 +359,7 @@ export default function Consultation() {
       toast.error("Please select a test");
       return;
     }
+    setSubmitting(true);
     try {
       await createLabOrder({ consultation: consultation.id, test: labForm.test });
       toast.success("Lab order created");
@@ -337,6 +368,8 @@ export default function Consultation() {
       loadConsultation();
     } catch (err) {
       toast.error(err.message || "Failed to create lab order");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -345,6 +378,7 @@ export default function Consultation() {
       toast.error("Please select a test");
       return;
     }
+    setSubmitting(true);
     try {
       await createRadiologyOrder({ consultation: consultation.id, test: radiologyForm.test });
       toast.success("Radiology order created");
@@ -353,6 +387,8 @@ export default function Consultation() {
       loadConsultation();
     } catch (err) {
       toast.error(err.message || "Failed to create radiology order");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -1015,14 +1051,21 @@ export default function Consultation() {
               type="button"
               className="btn btn-primary"
               onClick={handleCreateLabOrder}
+              disabled={submitting || !labForm.test}
             >
-              <i className="bi bi-plus-lg me-2"></i>
-              Order Lab Test
+              {submitting ? (
+                <span className="spinner-border spinner-border-sm" />
+              ) : (
+                <>
+                  <i className="bi bi-plus-lg me-2"></i>
+                  Order Lab Test
+                </>
+              )}
             </button>
           </>
         }
       >
-        <div className="field">
+        <div className="field mb-0">
           <label className="field-label" htmlFor="lab_test">
             Select Lab Test
           </label>
@@ -1031,16 +1074,23 @@ export default function Consultation() {
             className="select"
             value={labForm.test}
             onChange={(e) => setLabForm({ test: e.target.value })}
+            disabled={catalogsLoading}
           >
-            <option value="">Choose a test...</option>
-            {/* Lab tests would be loaded from API */}
-            <option value="CBC">Complete Blood Count</option>
-            <option value="MALARIA">Malaria Test</option>
-            <option value="URINALYSIS">Urinalysis</option>
-            <option value="BLOOD_SUGAR">Blood Sugar</option>
-            <option value="LFT">Liver Function Test</option>
-            <option value="KFT">Kidney Function Test</option>
+            <option value="">
+              {catalogsLoading ? "Loading tests..." : "Choose a test..."}
+            </option>
+            {labTests.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+                {t.price != null ? ` — KES ${t.price}` : ""}
+              </option>
+            ))}
           </select>
+          {!catalogsLoading && labTests.length === 0 && (
+            <div className="text-muted text-sm mt-1">
+              No lab tests found in the catalog. Add some under Lab Test Catalog first.
+            </div>
+          )}
         </div>
       </Modal>
 
@@ -1065,14 +1115,21 @@ export default function Consultation() {
               type="button"
               className="btn btn-primary"
               onClick={handleCreateRadiologyOrder}
+              disabled={submitting || !radiologyForm.test}
             >
-              <i className="bi bi-plus-lg me-2"></i>
-              Order Radiology
+              {submitting ? (
+                <span className="spinner-border spinner-border-sm" />
+              ) : (
+                <>
+                  <i className="bi bi-plus-lg me-2"></i>
+                  Order Radiology
+                </>
+              )}
             </button>
           </>
         }
       >
-        <div className="field">
+        <div className="field mb-0">
           <label className="field-label" htmlFor="radiology_test">
             Select Radiology Test
           </label>
@@ -1081,14 +1138,23 @@ export default function Consultation() {
             className="select"
             value={radiologyForm.test}
             onChange={(e) => setRadiologyForm({ test: e.target.value })}
+            disabled={catalogsLoading}
           >
-            <option value="">Choose a test...</option>
-            <option value="XRAY">X-Ray</option>
-            <option value="CT_SCAN">CT Scan</option>
-            <option value="MRI">MRI</option>
-            <option value="ULTRASOUND">Ultrasound</option>
-            <option value="ECG">ECG</option>
+            <option value="">
+              {catalogsLoading ? "Loading tests..." : "Choose a test..."}
+            </option>
+            {radiologyTests.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+                {t.price != null ? ` — KES ${t.price}` : ""}
+              </option>
+            ))}
           </select>
+          {!catalogsLoading && radiologyTests.length === 0 && (
+            <div className="text-muted text-sm mt-1">
+              No radiology tests found in the catalog. Add some under Radiology Test Catalog first.
+            </div>
+          )}
         </div>
       </Modal>
 

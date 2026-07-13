@@ -236,28 +236,45 @@ class PrescriptionSerializer(serializers.ModelSerializer):
 class LabOrderSerializer(serializers.ModelSerializer):
     test_name = serializers.CharField(source="test.name", read_only=True)
     test_price = serializers.DecimalField(source="test.price", max_digits=10, decimal_places=2, read_only=True)
+    patient_name = serializers.CharField(source="consultation.visit.patient.full_name", read_only=True)
+    result = serializers.SerializerMethodField()
 
     class Meta:
         model = LabOrder
         fields = [
-            "id", "consultation", "test", "test_name", "test_price", "status", "is_paid",
-            "invoice", "ordered_by", "ordered_at",
+            "id", "consultation", "test", "test_name", "test_price", "patient_name",
+            "status", "is_paid", "invoice", "ordered_by", "ordered_at", "result",
         ]
         read_only_fields = ["id", "status", "is_paid", "invoice", "ordered_by", "ordered_at"]
 
-
+    def get_result(self, obj):
+        result = getattr(obj, "result", None)
+        if result is None:
+            return None
+        request = self.context.get("request")
+        file_url = result.result_file.url if result.result_file else None
+        if file_url and request is not None:
+            file_url = request.build_absolute_uri(file_url)
+        return {
+            "id": str(result.id),
+            "result_text": result.result_text,
+            "result_file": file_url,
+            "completed_at": result.completed_at,
+        }
+        
+        
 class RadiologyOrderSerializer(serializers.ModelSerializer):
     test_name = serializers.CharField(source="test.name", read_only=True)
     test_price = serializers.DecimalField(source="test.price", max_digits=10, decimal_places=2, read_only=True)
+    patient_name = serializers.CharField(source="consultation.visit.patient.full_name", read_only=True)
 
     class Meta:
         model = RadiologyOrder
         fields = [
-            "id", "consultation", "test", "test_name", "test_price", "status", "is_paid",
-            "invoice", "ordered_by", "ordered_at",
+            "id", "consultation", "test", "test_name", "test_price", "patient_name",
+            "status", "is_paid", "invoice", "ordered_by", "ordered_at",
         ]
         read_only_fields = ["id", "status", "is_paid", "invoice", "ordered_by", "ordered_at"]
-
 
 class ConsultationSerializer(serializers.ModelSerializer):
     patient_name = serializers.CharField(source="visit.patient.full_name", read_only=True)
