@@ -41,7 +41,6 @@ export default function AuditLog() {
 
   useEffect(() => {
     loadLogs();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, search, action, userId]);
 
   const loadLogs = async () => {
@@ -127,8 +126,8 @@ export default function AuditLog() {
               delay={400}
             />
             <select
-              className="form-select form-select-sm"
-              style={{ maxWidth: 180 }}
+              className="select"
+              style={{ maxWidth: 180, height: '38px' }}
               value={action}
               onChange={(e) => {
                 setAction(e.target.value);
@@ -141,8 +140,8 @@ export default function AuditLog() {
               ))}
             </select>
             <select
-              className="form-select form-select-sm"
-              style={{ maxWidth: 220 }}
+              className="select"
+              style={{ maxWidth: 220, height: '38px' }}
               value={userId}
               onChange={(e) => {
                 setUserId(e.target.value);
@@ -177,48 +176,55 @@ export default function AuditLog() {
       </div>
 
       {viewingLog && (
-        <div className="modal-overlay">
-          <div className="modal-panel">
-            <div className="modal-panel__header">
-              <h2 className="modal-panel__title">
-                {viewingLog.action} — {viewingLog.model_name}
-              </h2>
-              <button type="button" className="btn-icon-only" onClick={() => setViewingLog(null)}>
+        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setViewingLog(null); }}>
+          <div className="modal" role="dialog" aria-modal="true">
+            <div className="modal-header">
+              <div>
+                <h5 className="modal-title">
+                  {viewingLog.action} — {viewingLog.model_name}
+                </h5>
+                <p className="modal-desc">
+                  {viewingLog.user_name || "System"} &middot; {formatDateTime(viewingLog.timestamp)}
+                </p>
+              </div>
+              <button type="button" className="modal-close" onClick={() => setViewingLog(null)} aria-label="Close">
                 <i className="bi bi-x-lg"></i>
               </button>
             </div>
 
-            <div className="modal-panel__body">
-              <p className="text-tertiary text-sm">
-                {viewingLog.user_name || "System"} &middot; {formatDateTime(viewingLog.timestamp)}
-              </p>
-
+            <div className="modal-body">
               {Object.keys(viewingLog.changes || {}).length === 0 ? (
-                <p className="text-tertiary">No field-level changes recorded.</p>
+                <p className="text-tertiary text-sm">No field-level changes recorded.</p>
               ) : (
-                <table className="table-simple">
-                  <thead>
-                    <tr>
-                      <th>Field</th>
-                      <th>Before</th>
-                      <th>After</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Object.entries(viewingLog.changes).map(([field, value]) => (
-                      <tr key={field}>
-                        <td className="cell-mono">{field}</td>
-                        <td className="text-tertiary">{Array.isArray(value) ? String(value[0]) : "—"}</td>
-                        <td>{Array.isArray(value) ? String(value[1]) : String(value)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div className="table-wrap">
+                  <div className="table-scroll">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Field</th>
+                          <th>Before</th>
+                          <th>After</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(viewingLog.changes).map(([field, value]) => (
+                          <tr key={field}>
+                            <td className="cell-mono text-2xs">{field}</td>
+                            <td className="cell-muted text-2xs">{Array.isArray(value) ? String(value[0]) : "—"}</td>
+                            <td className="text-2xs">{Array.isArray(value) ? String(value[1]) : String(value)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               )}
             </div>
 
-            <div className="modal-panel__footer">
-              <button type="button" className="btn btn-outline" onClick={() => setViewingLog(null)}>Close</button>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setViewingLog(null)}>
+                Close
+              </button>
             </div>
           </div>
         </div>
