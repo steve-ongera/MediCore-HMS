@@ -1,7 +1,9 @@
+// src/pages/auth/Login.jsx
 import { useState, useContext } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { AuthContext } from "../../context/AuthContext";
+import medicoreLogo from "../../assets/medicore_logo.png";
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -37,8 +39,26 @@ export default function Login() {
   };
 
   return (
-    <div className="auth-card">
-      <div className="auth-card__header">
+    <div className="auth-card" style={{ maxWidth: 500, margin: '0 auto' }}>
+      <div style={{ textAlign: 'center', marginBottom: 'var(--space-8)' }}>
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 'var(--space-3)',
+          marginBottom: 'var(--space-5)'
+        }}>
+          <img 
+            src={medicoreLogo} 
+            alt="Medicore HMIS" 
+            style={{ 
+              height: 120,
+              width: 'auto',
+              maxWidth: 240,
+              display: 'block'
+            }} 
+          />
+        </div>
         <h1 className="auth-card__title">Welcome back</h1>
         <p className="auth-card__subtitle">Sign in to your account to continue</p>
       </div>
@@ -89,7 +109,7 @@ export default function Login() {
                 top: "50%",
                 transform: "translateY(-50%)",
                 cursor: "pointer",
-                color: "#6c757d",
+                color: "var(--text-tertiary)",
                 zIndex: 10,
                 fontSize: "1.2rem"
               }}
@@ -107,7 +127,12 @@ export default function Login() {
         >
           {loading ? (
             <>
-              <span className="spinner-border spinner-border-sm me-2" role="status" />
+              <span className="spinner spinner-sm" style={{ 
+                display: 'inline-block', 
+                width: '16px', 
+                height: '16px',
+                marginRight: 'var(--space-2)' 
+              }}></span>
               Signing in...
             </>
           ) : (
