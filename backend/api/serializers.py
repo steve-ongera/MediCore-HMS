@@ -469,3 +469,21 @@ class AuditLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = AuditLog
         fields = ["id", "user", "user_name", "action", "model_name", "object_id", "changes", "ip_address", "timestamp"]
+        
+        
+# api/serializers.py — add near the bottom
+
+class TransactionSerializer(serializers.Serializer):
+    """
+    Read-only, unified view over Payment (hospital billing) and OTCSale
+    (walk-in pharmacy). Purely a reporting shape — it doesn't map to a
+    model and nothing writes through it.
+    """
+    id = serializers.UUIDField()
+    source = serializers.CharField()          # "HOSPITAL" | "OTC"
+    reference_number = serializers.CharField()
+    payer_name = serializers.CharField()
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    method = serializers.CharField()
+    served_by = serializers.CharField(allow_null=True)
+    occurred_at = serializers.DateTimeField()

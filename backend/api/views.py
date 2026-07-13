@@ -39,6 +39,7 @@ from api.serializers import (
     RadiologyTestCatalogSerializer, RadiologyOrderSerializer, RadiologyResultSerializer,
     SupplierSerializer, MedicineSerializer, MedicineBatchSerializer, StockTransactionSerializer,
     PharmacyDispenseSerializer, AuditLogSerializer, OTCSaleSerializer, OTCSaleCreateSerializer,
+    TransactionSerializer,
 )
 from api.utils import generate_qr_code
 
@@ -756,6 +757,68 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 # ---------------------------------------------------------------------------
+# Unified Transactions (read-only, merges Payment + OTCSale)
+# ---------------------------------------------------------------------------
+class AllTransactionsView(APIView):
+    """
+    GET /api/transactions/?date_from=&date_to=&source=HOSPITAL|OTC
+
+    Merges hospital billing (Payment) and walk-in pharmacy sales (OTCSale)
+    into a single, newest-first feed so "all my money" can be viewed in one
+    place. This is purely a read-only aggregation: it does not write to,
+    modify, or reroute either model. Payment/Invoice and OTCSale creation
+    behave exactly as before — nothing about those flows changes.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        date_from = request.query_params.get("date_from")
+        date_to = request.query_params.get("date_to")
+        source = request.query_params.get("source")
+
+        rows = []
+
+        if source in (None, "", "HOSPITAL"):
+            payments = Payment.objects.select_related("invoice__patient", "cashier").all()
+            if date_from:
+                payments = payments.filter(paid_at__date__gte=date_from)
+            if date_to:
+                payments = payments.filter(paid_at__date__lte=date_to)
+            for p in payments:
+                rows.append({
+                    "id": p.id,
+                    "source": "HOSPITAL",
+                    "reference_number": p.receipt_number,
+                    "payer_name": p.invoice.patient.full_name,
+                    "amount": p.amount,
+                    "method": p.method,
+                    "served_by": p.cashier.get_full_name() if p.cashier else None,
+                    "occurred_at": p.paid_at,
+                })
+
+        if source in (None, "", "OTC"):
+            sales = OTCSale.objects.select_related("served_by").all()
+            if date_from:
+                sales = sales.filter(sold_at__date__gte=date_from)
+            if date_to:
+                sales = sales.filter(sold_at__date__lte=date_to)
+            for s in sales:
+                rows.append({
+                    "id": s.id,
+                    "source": "OTC",
+                    "reference_number": s.sale_number,
+                    "payer_name": s.customer_name or "Walk-in Customer",
+                    "amount": s.amount_paid,
+                    "method": s.payment_method,
+                    "served_by": s.served_by.get_full_name() if s.served_by else None,
+                    "occurred_at": s.sold_at,
+                })
+
+        rows.sort(key=lambda r: r["occurred_at"], reverse=True)
+        return Response(TransactionSerializer(rows, many=True).data)
+
+
+# ---------------------------------------------------------------------------
 # Dashboard & Reports
 # ---------------------------------------------------------------------------
 class DashboardView(APIView):
@@ -765,13 +828,17 @@ class DashboardView(APIView):
         today = date.today()
         todays_visits = Visit.objects.filter(visit_date__date=today)
         todays_payments = Payment.objects.filter(paid_at__date=today)
+        todays_otc = OTCSale.objects.filter(sold_at__date=today)
 
         cards = {
             "todays_patients": todays_visits.values("patient").distinct().count(),
             "waiting_patients": QueueEntry.objects.exclude(
                 status__in=[QueueStatus.COMPLETED, QueueStatus.CANCELLED]
             ).count(),
-            "todays_revenue": str(todays_payments.aggregate(total=Sum("amount"))["total"] or 0),
+            "todays_revenue": str(
+                (todays_payments.aggregate(total=Sum("amount"))["total"] or 0)
+                + (todays_otc.aggregate(total=Sum("amount_paid"))["total"] or 0)
+            ),
             "pending_lab": LabOrder.objects.exclude(
                 status__in=[LabOrderStatus.COMPLETED, LabOrderStatus.CANCELLED]
             ).count(),
@@ -783,10 +850,12 @@ class DashboardView(APIView):
         }
 
         last_7_days = [today - timedelta(days=i) for i in range(6, -1, -1)]
-        revenue_chart = [
-            {"date": d.isoformat(), "revenue": str(Payment.objects.filter(paid_at__date=d).aggregate(t=Sum("amount"))["t"] or 0)}
-            for d in last_7_days
-        ]
+        revenue_chart = []
+        for d in last_7_days:
+            hospital_total = Payment.objects.filter(paid_at__date=d).aggregate(t=Sum("amount"))["t"] or 0
+            otc_total = OTCSale.objects.filter(sold_at__date=d).aggregate(t=Sum("amount_paid"))["t"] or 0
+            revenue_chart.append({"date": d.isoformat(), "revenue": str(hospital_total + otc_total)})
+
         visits_chart = [
             {"date": d.isoformat(), "visits": Visit.objects.filter(visit_date__date=d).count()}
             for d in last_7_days
@@ -805,7 +874,7 @@ class DashboardView(APIView):
 class ReportsView(APIView):
     """
     GET /api/reports/?type=daily_revenue|doctor_revenue|department_revenue|patient_statistics
-                        |medicine_sales|lab_revenue|radiology_revenue|consultation_revenue
+                        |medicine_sales|lab_revenue|radiology_revenue|consultation_revenue|otc_sales
         &date_from=YYYY-MM-DD&date_to=YYYY-MM-DD
     """
     permission_classes = [IsAuthenticated]
@@ -819,7 +888,28 @@ class ReportsView(APIView):
         invoices = Invoice.objects.filter(created_at__date__gte=date_from, created_at__date__lte=date_to)
 
         if report_type == "daily_revenue":
-            data = list(payments.values("paid_at__date").annotate(total=Sum("amount")).order_by("paid_at__date"))
+            # Combine hospital billing (Payment) with walk-in pharmacy sales
+            # (OTCSale) so the daily revenue report reflects all money taken,
+            # not just hospital invoices.
+            hospital_by_day = {
+                row["paid_at__date"]: row["total"] or 0
+                for row in payments.values("paid_at__date").annotate(total=Sum("amount"))
+            }
+            otc_qs = OTCSale.objects.filter(sold_at__date__gte=date_from, sold_at__date__lte=date_to)
+            otc_by_day = {
+                row["sold_at__date"]: row["total"] or 0
+                for row in otc_qs.values("sold_at__date").annotate(total=Sum("amount_paid"))
+            }
+            all_days = sorted(set(hospital_by_day) | set(otc_by_day))
+            data = [
+                {
+                    "date": d.isoformat(),
+                    "hospital_total": str(hospital_by_day.get(d, 0)),
+                    "otc_total": str(otc_by_day.get(d, 0)),
+                    "total": str(hospital_by_day.get(d, 0) + otc_by_day.get(d, 0)),
+                }
+                for d in all_days
+            ]
         elif report_type == "doctor_revenue":
             data = list(
                 invoices.filter(source_type=InvoiceSourceType.CONSULTATION, visit__doctor__isnull=False)

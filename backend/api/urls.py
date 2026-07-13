@@ -103,6 +103,7 @@ urlpatterns = [
     # =========================================================================
     path("dashboard/", views.DashboardView.as_view(), name="dashboard"),
     path("reports/", views.ReportsView.as_view(), name="reports"),
+    path("transactions/", views.AllTransactionsView.as_view(), name="transactions"),
 
     # =========================================================================
     # API Endpoints

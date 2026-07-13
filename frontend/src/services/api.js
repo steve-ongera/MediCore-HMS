@@ -268,6 +268,7 @@ export const getReports = (type, params) => unwrap(client.get(`/reports/${qs({ t
 // AUDIT LOG
 // ===========================================================================
 export const getAuditLogs = (params) => unwrap(client.get(`/audit-logs/${qs(params)}`));
+export const getAllTransactions = (params) => unwrap(client.get(`/transactions/${qs(params)}`));
 
 // ---------------------------------------------------------------------------
 // Helper: build multipart FormData for endpoints that accept file uploads
