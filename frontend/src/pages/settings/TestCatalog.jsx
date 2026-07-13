@@ -42,13 +42,12 @@ export default function TestCatalog() {
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const [pendingAction, setPendingAction] = useState(null); // { type: "delete"|"toggle", test }
+  const [pendingAction, setPendingAction] = useState(null);
 
   const active = TABS[tab];
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
   const load = async () => {
@@ -185,11 +184,11 @@ export default function TestCatalog() {
         </div>
       </div>
 
-      <div className="tab-bar mb-3">
+      <div className="tabs mb-4">
         {Object.entries(TABS).map(([key, t]) => (
           <button
             key={key}
-            className={`tab-bar__item${tab === key ? " is-active" : ""}`}
+            className={`tabs__item${tab === key ? " is-active" : ""}`}
             onClick={() => switchTab(key)}
           >
             {t.label}
@@ -220,70 +219,124 @@ export default function TestCatalog() {
       </div>
 
       {showForm && (
-        <div className="modal-overlay">
-          <form className="modal-panel" onSubmit={handleSubmit}>
-            <div className="modal-panel__header">
-              <h2 className="modal-panel__title">{editingId ? `Edit ${active.label} Test` : `Add ${active.label} Test`}</h2>
-              <button type="button" className="btn-icon-only" onClick={closeForm}>
-                <i className="bi bi-x-lg"></i>
-              </button>
-            </div>
-
-            <div className="modal-panel__body">
-              {formError && <div className="alert alert-danger">{formError}</div>}
-
-              <div className="form-field">
-                <label className="form-label">Code</label>
-                <input
-                  className="form-control"
-                  value={form.code}
-                  onChange={(e) => setForm({ ...form, code: e.target.value })}
-                  required
-                />
+        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) closeForm(); }}>
+          <div className="modal modal-lg" role="dialog" aria-modal="true">
+            <form onSubmit={handleSubmit}>
+              <div className="modal-header">
+                <div>
+                  <h5 className="modal-title">{editingId ? `Edit ${active.label} Test` : `Add ${active.label} Test`}</h5>
+                  <p className="modal-desc">
+                    {editingId ? "Update test details" : "Create a new test"}
+                  </p>
+                </div>
+                <button type="button" className="modal-close" onClick={closeForm} aria-label="Close">
+                  <i className="bi bi-x-lg"></i>
+                </button>
               </div>
 
-              <div className="form-field">
-                <label className="form-label">Test Name</label>
-                <input
-                  className="form-control"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  required
-                />
+              <div className="modal-body">
+                {formError && (
+                  <div className="alert alert-danger" style={{ 
+                    padding: 'var(--space-3) var(--space-4)', 
+                    background: 'var(--danger-soft)', 
+                    color: 'var(--danger-strong)',
+                    borderRadius: 'var(--radius-md)',
+                    marginBottom: 'var(--space-4)',
+                    fontSize: 'var(--fs-sm)'
+                  }}>
+                    {formError}
+                  </div>
+                )}
+
+                <div className="field">
+                  <label className="field-label">
+                    Test Code <span className="required">*</span>
+                  </label>
+                  <input
+                    className="input"
+                    value={form.code}
+                    onChange={(e) => setForm({ ...form, code: e.target.value })}
+                    placeholder="e.g., CBC-001"
+                    required
+                  />
+                </div>
+
+                <div className="field">
+                  <label className="field-label">
+                    Test Name <span className="required">*</span>
+                  </label>
+                  <input
+                    className="input"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="e.g., Complete Blood Count"
+                    required
+                  />
+                </div>
+
+                <div className="field">
+                  <label className="field-label">
+                    Price (KES) <span className="required">*</span>
+                  </label>
+                  <div className="input-group">
+                    <span className="input-addon">KES</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className="input"
+                      value={form.price}
+                      onChange={(e) => setForm({ ...form, price: e.target.value })}
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="field" style={{ marginBottom: 0 }}>
+                  <div className="switch-row" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                    <label className="switch">
+                      <input
+                        type="checkbox"
+                        checked={form.is_active}
+                        onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
+                      />
+                      <span className="switch-track"></span>
+                    </label>
+                    <div>
+                      <div style={{ fontWeight: 'var(--fw-medium)', fontSize: 'var(--fs-sm)' }}>
+                        Active Test
+                      </div>
+                      <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-tertiary)' }}>
+                        Inactive tests won't appear in order forms
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <div className="form-field">
-                <label className="form-label">Price (KES)</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  className="form-control"
-                  value={form.price}
-                  onChange={(e) => setForm({ ...form, price: e.target.value })}
-                  required
-                />
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={closeForm}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={saving}>
+                  {saving ? (
+                    <>
+                      <span className="spinner spinner-sm" style={{ 
+                        display: 'inline-block', 
+                        width: '16px', 
+                        height: '16px',
+                        marginRight: 'var(--space-2)' 
+                      }}></span>
+                      Saving...
+                    </>
+                  ) : (
+                    editingId ? 'Update Test' : 'Add Test'
+                  )}
+                </button>
               </div>
-
-              <div className="form-check">
-                <input
-                  type="checkbox"
-                  className="form-check-input"
-                  id="test-active"
-                  checked={form.is_active}
-                  onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
-                />
-                <label className="form-check-label" htmlFor="test-active">Active</label>
-              </div>
-            </div>
-
-            <div className="modal-panel__footer">
-              <button type="button" className="btn btn-outline" onClick={closeForm}>Cancel</button>
-              <button type="submit" className="btn btn-primary" disabled={saving}>
-                {saving ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
       )}
 
