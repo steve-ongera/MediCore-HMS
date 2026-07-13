@@ -199,11 +199,16 @@ export default function Inventory() {
     },
   ];
 
+  // NOTE: MedicineBatchSerializer returns `medicine` and `supplier` as plain
+  // foreign-key IDs, not nested objects. Read the flat `medicine_name` /
+  // `supplier_name` fields the serializer provides instead of drilling into
+  // row.medicine.name / row.supplier.name (which are always undefined since
+  // row.medicine / row.supplier are just UUID strings).
   const batchColumns = [
     {
       key: "medicine_name",
       label: "Medicine",
-      render: (row) => row.medicine?.name || "—",
+      render: (row) => row.medicine_name || "—",
     },
     {
       key: "batch_number",
@@ -213,7 +218,7 @@ export default function Inventory() {
     {
       key: "supplier_name",
       label: "Supplier",
-      render: (row) => row.supplier?.name || "—",
+      render: (row) => row.supplier_name || "—",
     },
     {
       key: "quantity_received",

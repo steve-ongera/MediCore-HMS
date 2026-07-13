@@ -349,11 +349,15 @@ class SupplierSerializer(serializers.ModelSerializer):
 
 
 class MedicineBatchSerializer(serializers.ModelSerializer):
+    medicine_name = serializers.CharField(source="medicine.name", read_only=True)
+    supplier_name = serializers.CharField(source="supplier.name", read_only=True)
+
     class Meta:
         model = MedicineBatch
         fields = [
-            "id", "medicine", "supplier", "batch_number", "quantity_received",
-            "quantity_remaining", "expiry_date", "received_date",
+            "id", "medicine", "medicine_name", "supplier", "supplier_name",
+            "batch_number", "quantity_received", "quantity_remaining",
+            "expiry_date", "received_date",
         ]
         read_only_fields = ["id", "received_date"]
 
