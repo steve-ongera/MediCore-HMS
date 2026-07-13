@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
-
 import { useAuth, ROLES } from "../context/AuthContext";
+import medicoreLogo from "../assets/medicore_logo.png";
 
 // Each link declares which roles can see it. Omit `roles` to show it to
 // everyone (Super Admin always sees everything, per useAuth().hasRole).
@@ -88,8 +88,17 @@ export default function Sidebar({ onNavigate }) {
   return (
     <aside className="sidebar">
       <div className="sidebar__brand">
-        <div className="sidebar__brand-logo">H</div>
-        <span className="sidebar__brand-text">HMIS</span>
+        <img 
+          src={medicoreLogo} 
+          alt="Medicore HMIS" 
+          style={{ 
+            height: 34, 
+            width: 'auto',
+            borderRadius: '5px',
+            flexShrink: 0
+          }} 
+        />
+        <span className="sidebar__brand-text">Medicore HMIS</span>
       </div>
 
       <div className="sidebar__scroll">
